@@ -3,10 +3,12 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Transigo KPI Dashboard (Demo)</title>
+  <title>Transigo KPI Dashboard · CSV Driven</title>
 
   <!-- Chart.js -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <!-- PapaParse (CSV robusto con ; e quote) -->
+  <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
 
   <style>
     :root { --bg:#0b1220; --card:#121b2e; --muted:#93a4c7; --text:#eaf0ff; --line:#223055; }
@@ -14,8 +16,17 @@
     header { display:flex; align-items:center; justify-content:space-between; padding:14px 18px; border-bottom:1px solid var(--line); position:sticky; top:0; background:rgba(11,18,32,.92); backdrop-filter: blur(8px); z-index: 10;}
     nav a { color:var(--muted); margin-right:14px; text-decoration:none; }
     nav a.active { color:var(--text); font-weight:600; }
-    .container { padding:16px 18px 40px; max-width:1400px; margin:0 auto; }
-    .filters { display:grid; grid-template-columns: 220px 360px 160px 180px auto; gap:10px; align-items:end; padding:12px; background:var(--card); border:1px solid var(--line); border-radius:12px; }
+    .container { padding:16px 18px 40px; max-width:1450px; margin:0 auto; }
+    .filters {
+      display:grid;
+      grid-template-columns: 280px 250px 360px 180px 180px 180px auto;
+      gap:10px;
+      align-items:end;
+      padding:12px;
+      background:var(--card);
+      border:1px solid var(--line);
+      border-radius:12px;
+    }
     label { font-size:12px; color:var(--muted); display:block; margin-bottom:6px; }
     select, input { width:100%; padding:10px; border-radius:10px; border:1px solid var(--line); background:#0e1730; color:var(--text); }
     .btn { padding:10px 12px; border-radius:10px; border:1px solid var(--line); background:#0e1730; color:var(--text); cursor:pointer; }
@@ -38,6 +49,8 @@
     table { width:100%; border-collapse:collapse; }
     th, td { padding:10px; border-bottom:1px solid var(--line); font-size:13px; color:#d7e3ff; }
     th { text-align:left; color:var(--muted); font-weight:600; }
+    .muted { color: var(--muted); font-size: 12px; }
+    .warn { color: #ffcc66; }
   </style>
 </head>
 
@@ -45,7 +58,7 @@
 <header>
   <div style="display:flex; gap:10px; align-items:center;">
     <strong>Transigo</strong>
-    <span class="pill">KPI Monitoring · Demo Data</span>
+    <span class="pill">KPI Monitoring · CSV Report</span>
   </div>
   <nav>
     <a href="#executive" class="active">Executive</a>
@@ -60,33 +73,21 @@
   <!-- FILTRI GLOBALI -->
   <section class="filters" id="filters">
     <div>
-      <label>Periodo</label>
-      <input type="text" id="f-period" placeholder="2025-12-01 → 2025-12-31" value="2025-12-01 → 2025-12-31" />
+      <label>1) Carica Report CSV (delimitatore ;)</label>
+      <input type="file" id="fileCsv" accept=".csv" />
+      <div class="muted" id="fileInfo">Nessun file caricato.</div>
     </div>
 
     <div>
-      <label>Cliente (Noleggiatore)</label>
-      <select id="f-client" multiple>
-        <option value="Vivarent">Vivarent</option>
-        <option value="BuyFleet">BuyFleet</option>
-        <option value="Rental Plus">Rental Plus</option>
-        <option value="WayCar - TurismoSanVitoLoCapo">WayCar - TurismoSanVitoLoCapo</option>
-        <option value="Italy Car Rent">Italy Car Rent</option>
-        <option value="All Rent | U-SAVE">All Rent | U-SAVE</option>
-        <option value="Differental - ITA RENT S.r.l.">Differental - ITA RENT S.r.l.</option>
-        <option value="Stairway Rent S.r.l">Stairway Rent S.r.l</option>
-        <option value="Etna Rent S.a.S.">Etna Rent S.a.S.</option>
-        <option value="Clarent S.r.l.">Clarent S.r.l.</option>
-      </select>
+      <label>2) Periodo (su Data Inserimento)</label>
+      <input type="text" id="f-period" placeholder="YYYY-MM-DD → YYYY-MM-DD" />
+      <div class="muted">Esempio: 2025-11-01 → 2025-11-29</div>
     </div>
 
     <div>
-      <label>Canale</label>
-      <select id="f-channel">
-        <option value="">Tutti</option>
-        <option value="B2B">B2B</option>
-        <option value="B2C">B2C</option>
-      </select>
+      <label>Cliente (Società) · multi-select</label>
+      <select id="f-client" multiple></select>
+      <div class="muted">Suggerimento: seleziona max 3–5 per confronti chiari</div>
     </div>
 
     <div>
@@ -98,11 +99,34 @@
       </select>
     </div>
 
-    <div style="display:flex; gap:10px; justify-content:flex-end;">
+    <div>
+      <label>Tipo Servizio</label>
+      <select id="f-service">
+        <option value="">Tutti</option>
+        <option value="Standard">Standard</option>
+        <option value="Service Plus">Service Plus</option>
+      </select>
+    </div>
+
+    <div>
+      <label>Tipo Notifica</label>
+      <select id="f-notify">
+        <option value="">Tutti</option>
+        <option value="SEND">SEND</option>
+        <option value="PEC">PEC</option>
+        <option value="ANALOGICA">ANALOGICA</option>
+      </select>
+    </div>
+
+    <div style="display:flex; gap:10px; justify-content:flex-end; align-items:end;">
       <button class="btn" id="btn-apply">Applica</button>
       <button class="btn" id="btn-reset">Reset</button>
     </div>
   </section>
+
+  <div class="muted" style="margin-top:10px;">
+    <span class="warn">Nota:</span> Funnel ShortLink usa proxy dal report (non ci sono eventi “open link” reali nel CSV).
+  </div>
 
   <!-- PAGINA 1: EXECUTIVE -->
   <section class="section" id="executive">
@@ -110,46 +134,50 @@
 
     <div class="grid cards">
       <div class="card">
-        <div class="kpi-title">Multe gestite (periodo)</div>
+        <div class="kpi-title">Multe gestite (righe filtrate)</div>
         <div class="kpi-value" id="kpi-cases">—</div>
         <div class="kpi-sub" id="kpi-cases-sub">IT vs Foreign: —</div>
       </div>
+
       <div class="card">
-        <div class="kpi-title">% Conducente identificato</div>
+        <div class="kpi-title">% Conducente identificato (proxy)</div>
         <div class="kpi-value" id="kpi-identified">—</div>
-        <div class="kpi-sub">identified / cases</div>
+        <div class="kpi-sub">Def: CF/PI/RS valorizzati</div>
       </div>
+
       <div class="card">
         <div class="kpi-title">% Pagate in app</div>
         <div class="kpi-value" id="kpi-paid-inapp">—</div>
-        <div class="kpi-sub">paid_in_app / cases_eligible</div>
+        <div class="kpi-sub">Def: Data Pagamento presente</div>
       </div>
+
       <div class="card">
         <div class="kpi-title">Tempo medio gestione</div>
         <div class="kpi-value" id="kpi-leadtime">—</div>
-        <div class="kpi-sub">infrazione → azione utente</div>
+        <div class="kpi-sub">Def: Inserimento → Pagamento (solo pagate)</div>
       </div>
     </div>
 
     <div class="grid two">
       <div class="card">
-        <div class="kpi-title">Trend volumi (stack IT/Foreign)</div>
+        <div class="kpi-title">Trend volumi (giornaliero) · IT vs Foreign</div>
         <div class="chartWrap"><canvas id="chartExecVolumes"></canvas></div>
       </div>
       <div class="card">
-        <div class="kpi-title">Ricavi & Margine (linee)</div>
+        <div class="kpi-title">Ricavi & Take Rate (proxy margine %)</div>
         <div class="chartWrap"><canvas id="chartExecFinance"></canvas></div>
+        <div class="muted">Take Rate = (Costo Gestione + OTP + Commissioni) / Totale Pagato</div>
       </div>
     </div>
 
     <div class="grid two">
       <div class="card">
-        <div class="kpi-title">Risparmio Driver (totale)</div>
+        <div class="kpi-title">Risparmio Driver (stima)</div>
         <div class="kpi-value" id="kpi-driver-saving">—</div>
-        <div class="kpi-sub">Σ max(0, baseline_cost - actual_cost)</div>
+        <div class="kpi-sub">Proxy: baseline_fee (7€) − fee effettiva (gestione+OTP)</div>
       </div>
       <div class="card">
-        <div class="kpi-title">Trend risparmio driver</div>
+        <div class="kpi-title">Trend risparmio driver (stima)</div>
         <div class="chartWrap sm"><canvas id="chartDriverSaving"></canvas></div>
       </div>
     </div>
@@ -161,40 +189,48 @@
 
     <div class="grid cards">
       <div class="card">
-        <div class="kpi-title">Ricavi totali (fee + commissioni)</div>
+        <div class="kpi-title">Ricavi totali (Fee + OTP + Commissioni)</div>
         <div class="kpi-value" id="kpi-revenue">—</div>
       </div>
       <div class="card">
-        <div class="kpi-title">Margine lordo €</div>
+        <div class="kpi-title">Margine lordo € (proxy = Ricavi)</div>
         <div class="kpi-value" id="kpi-gm-eur">—</div>
       </div>
       <div class="card">
-        <div class="kpi-title">Margine lordo %</div>
+        <div class="kpi-title">Take Rate % (proxy)</div>
         <div class="kpi-value" id="kpi-gm-pct">—</div>
       </div>
       <div class="card">
-        <div class="kpi-title">Pagamenti pre/post sollecito (split)</div>
+        <div class="kpi-title">Pagamenti pre/post (proxy su Comunicazione Preventiva)</div>
         <div class="kpi-value" id="kpi-prepost">—</div>
+        <div class="kpi-sub">pre: entro 5gg dalla Comunicazione Preventiva</div>
       </div>
     </div>
 
     <div class="grid two">
       <div class="card">
-        <div class="kpi-title">Dettaglio importi (stack)</div>
+        <div class="kpi-title">Dettaglio importi (stack) · Top clienti per volumi</div>
         <div class="chartWrap"><canvas id="chartAmountBreakdown"></canvas></div>
       </div>
       <div class="card">
-        <div class="kpi-title">“Heatmap proxy” margini per Cliente</div>
+        <div class="kpi-title">Margine % per cliente (bar)</div>
         <div class="chartWrap"><canvas id="chartMarginsByClient"></canvas></div>
       </div>
     </div>
 
     <div class="card table">
-      <div class="kpi-title">Tabella riconciliazione pagamenti (demo)</div>
+      <div class="kpi-title">Tabella economica per cliente (filtrata)</div>
       <table id="tbl-payments">
         <thead>
           <tr>
-            <th>Cliente</th><th>Transazioni</th><th>Incassato €</th><th>Fee €</th><th>Commissioni €</th><th>Margine %</th>
+            <th>Cliente</th>
+            <th>Pratiche</th>
+            <th>Totale Pagato €</th>
+            <th>Importo PA €</th>
+            <th>Fee+OTP €</th>
+            <th>Commissioni €</th>
+            <th>Ricavi €</th>
+            <th>Take Rate %</th>
           </tr>
         </thead>
         <tbody></tbody>
@@ -208,30 +244,34 @@
 
     <div class="grid cards">
       <div class="card">
-        <div class="kpi-title">Tempo medio chiusura (Plus)</div>
+        <div class="kpi-title">Tempo medio chiusura (Service Plus)</div>
         <div class="kpi-value" id="kpi-close-plus">—</div>
+        <div class="kpi-sub">Inserimento → Pagamento</div>
       </div>
       <div class="card">
-        <div class="kpi-title">Tempo medio chiusura (Service)</div>
+        <div class="kpi-title">Tempo medio chiusura (Standard)</div>
         <div class="kpi-value" id="kpi-close-service">—</div>
+        <div class="kpi-sub">Inserimento → Pagamento</div>
       </div>
       <div class="card">
         <div class="kpi-title">Tempo medio reintestazione</div>
         <div class="kpi-value" id="kpi-reassign">—</div>
+        <div class="kpi-sub">Inserimento → Rinotifica</div>
       </div>
       <div class="card">
         <div class="kpi-title">SLA pagamento (entro 72h)</div>
         <div class="kpi-value" id="kpi-sla-pay">—</div>
+        <div class="kpi-sub">Comunicazione Preventiva → Pagamento</div>
       </div>
     </div>
 
     <div class="grid two">
       <div class="card">
-        <div class="kpi-title">Trend tempi (Plus vs Service)</div>
+        <div class="kpi-title">Trend tempi chiusura (Plus vs Standard)</div>
         <div class="chartWrap"><canvas id="chartOpsClose"></canvas></div>
       </div>
       <div class="card">
-        <div class="kpi-title">SLA: tempo medio pagamento + compliance</div>
+        <div class="kpi-title">SLA: tempo medio + compliance</div>
         <div class="chartWrap"><canvas id="chartOpsSla"></canvas></div>
       </div>
     </div>
@@ -239,20 +279,22 @@
 
   <!-- PAGINA 4: SHORTLINK -->
   <section class="section" id="shortlink">
-    <h2>4) Analisi Conversione & ShortLink (Comportamento Utente)</h2>
+    <h2>4) Analisi Conversione & ShortLink (Comportamento Utente) · Proxy dal CSV</h2>
 
     <div class="grid cards">
       <div class="card">
-        <div class="kpi-title">Notifiche inviate</div>
+        <div class="kpi-title">Notifiche inviate (Tipo Notifica = SEND)</div>
         <div class="kpi-value" id="kpi-sent">—</div>
       </div>
       <div class="card">
-        <div class="kpi-title">Delivery rate</div>
+        <div class="kpi-title">Delivery rate (proxy)</div>
         <div class="kpi-value" id="kpi-delivery-rate">—</div>
+        <div class="kpi-sub">delivered = SEND & Stato != “Pagamento Fallito”</div>
       </div>
       <div class="card">
-        <div class="kpi-title">% non hanno aperto</div>
+        <div class="kpi-title">% non hanno “aperto” (proxy)</div>
         <div class="kpi-value" id="kpi-no-open">—</div>
+        <div class="kpi-sub">open = registrato o pagato o stato avanzato</div>
       </div>
       <div class="card">
         <div class="kpi-title">% open ma non registrati</div>
@@ -262,26 +304,14 @@
 
     <div class="grid two">
       <div class="card">
-        <div class="kpi-title">Funnel conversione (valori)</div>
+        <div class="kpi-title">Funnel (valori)</div>
         <div class="funnel" id="funnel">
           <div class="funnel-step">Notifica inviata: <strong id="f-step-sent">—</strong></div>
-          <div class="funnel-step">Delivered: <strong id="f-step-del">—</strong></div>
-          <div class="funnel-step">Link aperto: <strong id="f-step-open">—</strong></div>
-          <div class="funnel-step">Registrazione: <strong id="f-step-reg">—</strong> (Cover: <span id="f-step-cover">—</span> / On Demand: <span id="f-step-od">—</span>)</div>
-          <div class="funnel-step">Firma: <strong id="f-step-sign">—</strong></div>
+          <div class="funnel-step">Delivered (proxy): <strong id="f-step-del">—</strong></div>
+          <div class="funnel-step">Link aperto (proxy): <strong id="f-step-open">—</strong></div>
+          <div class="funnel-step">Registrazione App: <strong id="f-step-reg">—</strong> (Cover: <span id="f-step-cover">—</span> / On Demand: <span id="f-step-od">—</span>)</div>
           <div class="funnel-step">Pagamento: <strong id="f-step-pay">—</strong></div>
         </div>
-      </div>
-      <div class="card">
-        <div class="kpi-title">Trend conversion rates</div>
-        <div class="chartWrap"><canvas id="chartShortlinkRates"></canvas></div>
-      </div>
-    </div>
-
-    <div class="grid two">
-      <div class="card">
-        <div class="kpi-title">Drop-off per step (bar)</div>
-        <div class="chartWrap"><canvas id="chartDropoff"></canvas></div>
       </div>
       <div class="card">
         <div class="kpi-title">Split IT vs Foreign (Open/Reg/Pay)</div>
@@ -293,165 +323,370 @@
 
 <script>
   // -----------------------
-  // Mock data (demo)
+  // Stato app
   // -----------------------
-  const CLIENTS = [
-    "Vivarent",
-    "BuyFleet",
-    "Rental Plus",
-    "WayCar - TurismoSanVitoLoCapo",
-    "Italy Car Rent",
-    "All Rent | U-SAVE",
-    "Differental - ITA RENT S.r.l.",
-    "Stairway Rent S.r.l",
-    "Etna Rent S.a.S.",
-    "Clarent S.r.l."
-  ];
-
-  const demo = {
-    labels: ["01", "02", "03", "04", "05", "06", "07", "08", "09", "10", "11", "12", "13", "14"],
-
-    volumes: {
-      it:     [38, 41, 44, 39, 47, 52, 49, 55, 58, 53, 60, 63, 59, 64],
-      foreign:[22, 25, 28, 24, 30, 33, 31, 35, 37, 34, 39, 41, 38, 42],
-    },
-
-    identifiedPct: [0.62,0.63,0.64,0.63,0.65,0.66,0.67,0.66,0.68,0.69,0.70,0.70,0.71,0.72],
-    paidInAppPct:  [0.31,0.32,0.33,0.33,0.34,0.36,0.35,0.37,0.38,0.38,0.39,0.40,0.41,0.42],
-
-    finance: {
-      revenue: [4200, 4500, 4700, 4600, 5100, 5600, 5400, 5900, 6200, 6000, 6600, 6900, 6700, 7200],
-      gmPct:   [0.41, 0.40, 0.42, 0.41, 0.43, 0.44, 0.43, 0.45, 0.46, 0.45, 0.47, 0.48, 0.47, 0.49]
-    },
-
-    driverSaving: [620, 680, 710, 690, 760, 820, 790, 870, 910, 880, 950, 980, 960, 1030],
-
-    // Economica: breakdown su subset (3) per non affollare
-    amountBreakdown: {
-      labels: ["Vivarent", "BuyFleet", "Rental Plus"],
-      sanction:  [52000, 39000, 21000],
-      appFees:   [ 8200,  6400,  3300],
-      handling:  [ 6100,  5200,  2900],
-    },
-
-    // Economica: margine per cliente (proxy heatmap)
-    marginsByClient: {
-      labels: CLIENTS,
-      gmPct: [0.46,0.41,0.44,0.38,0.49,0.42,0.40,0.45,0.43,0.47]
-    },
-
-    // Tabella pagamenti per cliente (demo)
-    paymentsTable: [
-      {client:"Vivarent", tx:220, gross:18200, fee:3100, comm:1100, gmPct:0.46},
-      {client:"BuyFleet", tx:160, gross:14100, fee:2400, comm:900,  gmPct:0.41},
-      {client:"Rental Plus", tx:140, gross:12100, fee:2100, comm:700, gmPct:0.44},
-      {client:"WayCar - TurismoSanVitoLoCapo", tx:90, gross:8200, fee:1400, comm:600, gmPct:0.38},
-      {client:"Italy Car Rent", tx:120, gross:9900, fee:1700, comm:500, gmPct:0.49},
-      {client:"All Rent | U-SAVE", tx:110, gross:9100, fee:1600, comm:500, gmPct:0.42},
-      {client:"Differental - ITA RENT S.r.l.", tx:130, gross:10800, fee:1900, comm:650, gmPct:0.40},
-      {client:"Stairway Rent S.r.l", tx:105, gross:8700, fee:1500, comm:520, gmPct:0.45},
-      {client:"Etna Rent S.a.S.", tx:115, gross:9400, fee:1600, comm:550, gmPct:0.43},
-      {client:"Clarent S.r.l.", tx:150, gross:12600, fee:2200, comm:700, gmPct:0.47},
-    ],
-
-    ops: {
-      closePlusHrs:   [29, 30, 31, 30, 28, 27, 26, 27, 25, 26, 24, 24, 23, 22],
-      closeServHrs:   [44, 45, 46, 45, 43, 42, 41, 42, 40, 39, 38, 38, 37, 36],
-      paymentLeadHrs: [80, 78, 76, 74, 72, 70, 68, 69, 66, 65, 63, 62, 60, 59],
-      sla72Compliance:[0.54,0.55,0.56,0.57,0.58,0.60,0.61,0.62,0.64,0.65,0.66,0.67,0.68,0.69],
-      reassignHrs:    [18, 19, 18, 17, 16, 16, 15, 15, 14, 14, 13, 13, 12, 12]
-    },
-
-    shortlink: {
-      sent:  1200,
-      del:   1090,
-      open:   730,
-      reg:    460,
-      cover:  310,
-      od:     150,
-      sign:   390,
-      pay:    340,
-
-      openRate: [0.64,0.65,0.63,0.66,0.67,0.68,0.66,0.69,0.70,0.68,0.71,0.72,0.71,0.73],
-      regRate:  [0.61,0.60,0.62,0.63,0.62,0.64,0.63,0.65,0.66,0.64,0.66,0.67,0.66,0.68],
-      payRate:  [0.73,0.74,0.72,0.75,0.75,0.76,0.75,0.77,0.78,0.77,0.79,0.80,0.79,0.81],
-
-      it:      {del: 640, open: 450, reg: 300, pay: 230},
-      foreign: {del: 450, open: 280, reg: 160, pay: 110},
-    }
-  };
+  let RAW = []; // righe del CSV
+  const charts = {};
 
   // -----------------------
-  // Helpers (format)
+  // Utils: parsing & formatting
   // -----------------------
   const fmtInt = (n) => (n ?? 0).toLocaleString("it-IT");
   const fmtEur = (n) => (n ?? 0).toLocaleString("it-IT", { style:"currency", currency:"EUR", maximumFractionDigits:0 });
-  const fmtPct = (x) => ((x ?? 0) * 100).toFixed(1) + "%";
-  const fmtHrs = (h) => (h ?? 0).toFixed(1) + " h";
+  const fmtPct = (x) => (isFinite(x) ? (x * 100).toFixed(1) : "0.0") + "%";
+  const fmtHrs = (h) => (isFinite(h) ? h.toFixed(1) : "0.0") + " h";
   function setText(id, v) { const el = document.getElementById(id); if (el) el.textContent = v; }
 
-  // -----------------------
-  // KPI Cards (demo)
-  // -----------------------
-  function renderKpis() {
-    const totalIT = demo.volumes.it.reduce((a,b)=>a+b,0);
-    const totalFR = demo.volumes.foreign.reduce((a,b)=>a+b,0);
-    const totalCases = totalIT + totalFR;
+  function parseITDate(s) {
+    // supporta dd/mm/yyyy e dd/mm/yyyy hh:mm
+    if (!s) return null;
+    const t = String(s).trim();
+    if (!t || t === "EE") return null;
+    // dd/mm/yyyy
+    const m = t.match(/^(\d{2})\/(\d{2})\/(\d{4})(?:\s+(\d{2}):(\d{2}))?/);
+    if (!m) return null;
+    const dd = Number(m[1]), mm = Number(m[2]) - 1, yyyy = Number(m[3]);
+    const hh = m[4] ? Number(m[4]) : 0;
+    const mi = m[5] ? Number(m[5]) : 0;
+    const d = new Date(Date.UTC(yyyy, mm, dd, hh, mi, 0));
+    return isNaN(d.getTime()) ? null : d;
+  }
 
-    const identifiedAvg = demo.identifiedPct.reduce((a,b)=>a+b,0) / demo.identifiedPct.length;
-    const paidAvg = demo.paidInAppPct.reduce((a,b)=>a+b,0) / demo.paidInAppPct.length;
-    const leadTimeAvgHrs = demo.ops.paymentLeadHrs.reduce((a,b)=>a+b,0) / demo.ops.paymentLeadHrs.length; // proxy
+  function parseNumberEuro(s) {
+    // nel report i numeri possono arrivare "123,45" o "123.45" o vuoti
+    if (s === null || s === undefined) return 0;
+    const t = String(s).trim();
+    if (!t || t === "EE") return 0;
+    const normalized = t.replace(/\./g, "").replace(",", ".");
+    const v = Number(normalized);
+    return isFinite(v) ? v : 0;
+  }
 
-    setText("kpi-cases", fmtInt(totalCases));
-    setText("kpi-cases-sub", `IT ${fmtInt(totalIT)} · Foreign ${fmtInt(totalFR)}`);
-    setText("kpi-identified", fmtPct(identifiedAvg));
-    setText("kpi-paid-inapp", fmtPct(paidAvg));
-    setText("kpi-leadtime", fmtHrs(leadTimeAvgHrs));
+  function isItalian(row) {
+    const code = (row["Paese Residenza"] || "").trim().toUpperCase();
+    return code === "ITA" || code === "IT" || code === "ITALIA";
+  }
 
-    const revenueTotal = demo.finance.revenue.reduce((a,b)=>a+b,0);
-    const gmAvg = demo.finance.gmPct.reduce((a,b)=>a+b,0) / demo.finance.gmPct.length;
-    setText("kpi-revenue", fmtEur(revenueTotal));
-    setText("kpi-gm-eur", fmtEur(revenueTotal * gmAvg));
-    setText("kpi-gm-pct", fmtPct(gmAvg));
+  function getFilterState() {
+    const period = (document.getElementById("f-period").value || "").trim();
+    const clients = Array.from(document.getElementById("f-client").selectedOptions).map(o => o.value);
+    const nation = document.getElementById("f-nation").value || "";
+    const service = document.getElementById("f-service").value || "";
+    const notify = document.getElementById("f-notify").value || "";
+    return { period, clients, nation, service, notify };
+  }
 
-    const pre = 0.58, post = 0.42; // demo
-    setText("kpi-prepost", `${fmtPct(pre)} pre · ${fmtPct(post)} post`);
+  function parsePeriod(periodStr) {
+    // "YYYY-MM-DD → YYYY-MM-DD"
+    if (!periodStr) return { from:null, to:null };
+    const parts = periodStr.split("→").map(x => x.trim());
+    if (parts.length !== 2) return { from:null, to:null };
+    const from = new Date(parts[0] + "T00:00:00Z");
+    const to = new Date(parts[1] + "T23:59:59Z");
+    if (isNaN(from.getTime()) || isNaN(to.getTime())) return { from:null, to:null };
+    return { from, to };
+  }
 
-    const savingTotal = demo.driverSaving.reduce((a,b)=>a+b,0);
-    setText("kpi-driver-saving", fmtEur(savingTotal));
+  function inPeriod(row, from, to) {
+    // periodo su Data Inserimento (come deciso in UI)
+    const d = parseITDate(row["Data Inserimento"]);
+    if (!d || !from || !to) return true; // se non c'è periodo valido, non filtro
+    return d >= from && d <= to;
+  }
 
-    // OPS
-    const closePlusAvg = demo.ops.closePlusHrs.reduce((a,b)=>a+b,0) / demo.ops.closePlusHrs.length;
-    const closeServAvg = demo.ops.closeServHrs.reduce((a,b)=>a+b,0) / demo.ops.closeServHrs.length;
-    const reassignAvg  = demo.ops.reassignHrs.reduce((a,b)=>a+b,0) / demo.ops.reassignHrs.length;
-    const slaAvg       = demo.ops.sla72Compliance.reduce((a,b)=>a+b,0) / demo.ops.sla72Compliance.length;
+  function applyFilters(rows, f) {
+    const { from, to } = parsePeriod(f.period);
 
-    setText("kpi-close-plus", fmtHrs(closePlusAvg));
-    setText("kpi-close-service", fmtHrs(closeServAvg));
-    setText("kpi-reassign", fmtHrs(reassignAvg));
-    setText("kpi-sla-pay", fmtPct(slaAvg));
+    return rows.filter(r => {
+      if (!inPeriod(r, from, to)) return false;
 
-    // Shortlink KPI
-    const s = demo.shortlink;
-    setText("kpi-sent", fmtInt(s.sent));
-    setText("kpi-delivery-rate", fmtPct(s.del / s.sent));
-    setText("kpi-no-open", fmtPct((s.del - s.open) / s.del));
-    setText("kpi-open-no-reg", fmtPct((s.open - s.reg) / s.open));
+      if (f.clients.length > 0) {
+        const c = (r["Società"] || "").trim();
+        if (!f.clients.includes(c)) return false;
+      }
 
-    setText("f-step-sent", fmtInt(s.sent));
-    setText("f-step-del", fmtInt(s.del));
-    setText("f-step-open", fmtInt(s.open));
-    setText("f-step-reg", fmtInt(s.reg));
-    setText("f-step-cover", fmtInt(s.cover));
-    setText("f-step-od", fmtInt(s.od));
-    setText("f-step-sign", fmtInt(s.sign));
-    setText("f-step-pay", fmtInt(s.pay));
+      if (f.nation) {
+        const it = isItalian(r);
+        if (f.nation === "IT" && !it) return false;
+        if (f.nation === "FOREIGN" && it) return false;
+      }
+
+      if (f.service) {
+        if ((r["Tipo Servizio"] || "").trim() !== f.service) return false;
+      }
+
+      if (f.notify) {
+        if ((r["Tipo Notifica"] || "").trim() !== f.notify) return false;
+      }
+
+      return true;
+    });
+  }
+
+  function groupBy(rows, keyFn) {
+    const m = new Map();
+    for (const r of rows) {
+      const k = keyFn(r);
+      if (!m.has(k)) m.set(k, []);
+      m.get(k).push(r);
+    }
+    return m;
+  }
+
+  function daysKeyUTC(d) {
+    // YYYY-MM-DD
+    const yyyy = d.getUTCFullYear();
+    const mm = String(d.getUTCMonth()+1).padStart(2,"0");
+    const dd = String(d.getUTCDate()).padStart(2,"0");
+    return `${yyyy}-${mm}-${dd}`;
   }
 
   // -----------------------
-  // Charts
+  // KPI definitions (dal CSV)
   // -----------------------
-  const charts = {};
+  function calcKPIs(rows) {
+    const n = rows.length;
+
+    // IT vs Foreign
+    let itCount = 0;
+    for (const r of rows) if (isItalian(r)) itCount++;
+    const foreignCount = n - itCount;
+
+    // Identificato (proxy): almeno uno tra CF / Partita IVA / Ragione sociale valorizzati e non "EE"
+    const identified = rows.filter(r => {
+      const cf = (r["Codice Fiscale"] || "").trim();
+      const pi = (r["Partita Iva"] || "").trim();
+      const rs = (r["Ragione sociale"] || "").trim();
+      const ok = (x) => x && x !== "EE";
+      return ok(cf) || ok(pi) || ok(rs);
+    }).length;
+
+    // Pagate in app (proxy): Data Pagamento presente (nel report Tipo Pagamento è "card")
+    const paid = rows.filter(r => !!parseITDate(r["Data Pagamento"])).length;
+
+    // Lead time (ore): Inserimento → Pagamento (solo pagate)
+    const leadTimesHrs = [];
+    for (const r of rows) {
+      const di = parseITDate(r["Data Inserimento"]);
+      const dp = parseITDate(r["Data Pagamento"]);
+      if (di && dp && dp >= di) leadTimesHrs.push((dp - di) / 3600000);
+    }
+    const avgLeadHrs = leadTimesHrs.length ? leadTimesHrs.reduce((a,b)=>a+b,0)/leadTimesHrs.length : 0;
+
+    // Ricavi: Costo Gestione Pratica + OTP + Commissioni
+    let fee = 0, otp = 0, comm = 0, totalPaid = 0, importoPA = 0;
+    for (const r of rows) {
+      fee += parseNumberEuro(r["Costo Gestione Pratica"]);
+      otp += parseNumberEuro(r["OTP"]);
+      comm += parseNumberEuro(r["Commissioni"]);
+      totalPaid += parseNumberEuro(r["Totale Pagato"]);
+      importoPA += parseNumberEuro(r["Importo PA"]);
+    }
+    const revenue = fee + otp + comm;
+    const takeRate = totalPaid > 0 ? revenue / totalPaid : 0;
+
+    // Pre/Post (proxy): se Data Pagamento entro 5gg da Data ComunicazionePreventiva => pre, altrimenti post
+    let pre = 0, post = 0;
+    for (const r of rows) {
+      const dp = parseITDate(r["Data Pagamento"]);
+      if (!dp) continue;
+      const dcp = parseITDate(r["Data ComunicazionePreventiva"]);
+      if (!dcp) { post++; continue; } // senza comunicazione, consideriamo post/unknown
+      const deltaDays = (dp - dcp) / 86400000;
+      if (deltaDays <= 5) pre++; else post++;
+    }
+
+    // Risparmio driver (stima): baseline fee 7€ - (Costo Gestione + OTP), clamp >=0
+    // (lo rendiamo esplicito, così lo puoi ritarare da config)
+    const BASELINE_FEE = 7.0;
+    let saving = 0;
+    for (const r of rows) {
+      const actual = parseNumberEuro(r["Costo Gestione Pratica"]) + parseNumberEuro(r["OTP"]);
+      saving += Math.max(0, BASELINE_FEE - actual);
+    }
+
+    return {
+      n, itCount, foreignCount,
+      identifiedPct: n ? identified/n : 0,
+      paidPct: n ? paid/n : 0,
+      avgLeadHrs,
+      revenue, fee, otp, comm, totalPaid, importoPA, takeRate,
+      pre, post,
+      saving
+    };
+  }
+
+  // Trend giornaliero su Data Inserimento
+  function trendDaily(rows) {
+    const m = new Map(); // date -> {it, foreign, revenue, takeRate, saving}
+    for (const r of rows) {
+      const d = parseITDate(r["Data Inserimento"]);
+      if (!d) continue;
+      const k = daysKeyUTC(d);
+      if (!m.has(k)) m.set(k, { it:0, foreign:0, revenue:0, totalPaid:0, saving:0 });
+      const o = m.get(k);
+      if (isItalian(r)) o.it++; else o.foreign++;
+
+      const fee = parseNumberEuro(r["Costo Gestione Pratica"]);
+      const otp = parseNumberEuro(r["OTP"]);
+      const comm = parseNumberEuro(r["Commissioni"]);
+      const tot = parseNumberEuro(r["Totale Pagato"]);
+      o.revenue += (fee+otp+comm);
+      o.totalPaid += tot;
+
+      const BASELINE_FEE = 7.0;
+      o.saving += Math.max(0, BASELINE_FEE - (fee+otp));
+    }
+
+    const labels = Array.from(m.keys()).sort();
+    const it = labels.map(k => m.get(k).it);
+    const foreign = labels.map(k => m.get(k).foreign);
+    const revenue = labels.map(k => m.get(k).revenue);
+    const takeRate = labels.map(k => {
+      const o = m.get(k);
+      return o.totalPaid > 0 ? (o.revenue / o.totalPaid) * 100 : 0;
+    });
+    const saving = labels.map(k => m.get(k).saving);
+
+    return { labels, it, foreign, revenue, takeRate, saving };
+  }
+
+  // Tabella + grafici per cliente
+  function perClient(rows) {
+    const g = groupBy(rows, r => (r["Società"] || "Sconosciuto").trim() || "Sconosciuto");
+    const out = [];
+    for (const [client, rr] of g.entries()) {
+      let fee=0, otp=0, comm=0, totalPaid=0, importoPA=0;
+      for (const r of rr) {
+        fee += parseNumberEuro(r["Costo Gestione Pratica"]);
+        otp += parseNumberEuro(r["OTP"]);
+        comm += parseNumberEuro(r["Commissioni"]);
+        totalPaid += parseNumberEuro(r["Totale Pagato"]);
+        importoPA += parseNumberEuro(r["Importo PA"]);
+      }
+      const revenue = fee + otp + comm;
+      const takeRate = totalPaid > 0 ? revenue/totalPaid : 0;
+      out.push({ client, cases: rr.length, totalPaid, importoPA, feeOtp: fee+otp, comm, revenue, takeRate });
+    }
+    // ordina per volumi desc
+    out.sort((a,b) => b.cases - a.cases);
+    return out;
+  }
+
+  // OPS: tempi per giorno (media), separando Standard vs Service Plus
+  function opsTrends(rows) {
+    // close time: Inserimento -> Pagamento, solo se pagata
+    // reassign: Inserimento -> Rinotifica (se presente)
+    // sla: ComunicazionePreventiva -> Pagamento (se presenti)
+    const daily = new Map(); // date -> metrics
+    function getDay(r) {
+      const d = parseITDate(r["Data Inserimento"]);
+      return d ? daysKeyUTC(d) : null;
+    }
+    for (const r of rows) {
+      const day = getDay(r);
+      if (!day) continue;
+      if (!daily.has(day)) daily.set(day, {
+        plusClose: [], stdClose: [],
+        reassign: [],
+        sla: [],
+        slaOk72: 0, slaN: 0
+      });
+      const o = daily.get(day);
+
+      const di = parseITDate(r["Data Inserimento"]);
+      const dp = parseITDate(r["Data Pagamento"]);
+      const dr = parseITDate(r["Data Rinotifica"]);
+      const dcp = parseITDate(r["Data ComunicazionePreventiva"]);
+      const svc = (r["Tipo Servizio"] || "").trim();
+
+      if (di && dp && dp >= di) {
+        const hrs = (dp - di)/3600000;
+        if (svc === "Service Plus") o.plusClose.push(hrs);
+        if (svc === "Standard") o.stdClose.push(hrs);
+      }
+
+      if (di && dr && dr >= di) {
+        o.reassign.push((dr - di)/3600000);
+      }
+
+      if (dcp && dp && dp >= dcp) {
+        const hrs = (dp - dcp)/3600000;
+        o.sla.push(hrs);
+        o.slaN += 1;
+        if (hrs <= 72) o.slaOk72 += 1;
+      }
+    }
+
+    const labels = Array.from(daily.keys()).sort();
+    function avg(arr){ return arr.length ? arr.reduce((a,b)=>a+b,0)/arr.length : 0; }
+
+    const plus = labels.map(k => avg(daily.get(k).plusClose));
+    const std  = labels.map(k => avg(daily.get(k).stdClose));
+    const slaAvg = labels.map(k => avg(daily.get(k).sla));
+    const slaComp = labels.map(k => {
+      const o = daily.get(k);
+      return o.slaN ? (o.slaOk72/o.slaN)*100 : 0;
+    });
+
+    return { labels, plus, std, slaAvg, slaComp };
+  }
+
+  // Shortlink Funnel (proxy dal CSV)
+  function shortlinkProxy(rows) {
+    // sent: Tipo Notifica = SEND
+    const sentRows = rows.filter(r => (r["Tipo Notifica"] || "").trim() === "SEND");
+    const sent = sentRows.length;
+
+    // delivered proxy: SEND and Stato != "Pagamento Fallito"
+    const deliveredRows = sentRows.filter(r => (r["Stato"] || "").trim() !== "Pagamento Fallito");
+    const delivered = deliveredRows.length;
+
+    // open proxy: se registrato OR pagato OR stato avanzato
+    const advancedStates = new Set(["Pagata", "Chiusa", "Dichiarazione da Firmare", "Comunicazione Preventiva Inviata"]);
+    const openRows = deliveredRows.filter(r => {
+      const reg = (r["Registrazione App"] || "").trim() === "Si";
+      const paid = !!parseITDate(r["Data Pagamento"]);
+      const st = (r["Stato"] || "").trim();
+      return reg || paid || advancedStates.has(st);
+    });
+    const open = openRows.length;
+
+    // registrazione
+    const regRows = openRows.filter(r => (r["Registrazione App"] || "").trim() === "Si");
+    const reg = regRows.length;
+
+    // cover vs on demand
+    const cover = regRows.filter(r => (r["Cover"] || "").trim() === "Si").length;
+    const od = reg - cover;
+
+    // pagamento
+    const pay = openRows.filter(r => !!parseITDate(r["Data Pagamento"])).length;
+
+    // split IT vs Foreign su open/reg/pay (per chart)
+    function split(arr) {
+      let it=0, fr=0;
+      for (const r of arr) { if (isItalian(r)) it++; else fr++; }
+      return {it, fr};
+    }
+    const delSplit = split(deliveredRows);
+    const openSplit = split(openRows);
+    const regSplit = split(regRows);
+    const paySplit = split(openRows.filter(r => !!parseITDate(r["Data Pagamento"])));
+
+    return {
+      sent, delivered, open, reg, cover, od, pay,
+      delSplit, openSplit, regSplit, paySplit
+    };
+  }
+
+  // -----------------------
+  // Rendering
+  // -----------------------
+  function destroyChart(id) {
+    if (charts[id]) { charts[id].destroy(); delete charts[id]; }
+  }
+
   function baseOptions() {
     return {
       responsive: true,
@@ -464,27 +699,49 @@
     };
   }
 
-  function renderCharts() {
+  function renderAll() {
+    const f = getFilterState();
+    const rows = applyFilters(RAW, f);
+
+    // KPI
+    const k = calcKPIs(rows);
+    setText("kpi-cases", fmtInt(k.n));
+    setText("kpi-cases-sub", `IT ${fmtInt(k.itCount)} · Foreign ${fmtInt(k.foreignCount)}`);
+    setText("kpi-identified", fmtPct(k.identifiedPct));
+    setText("kpi-paid-inapp", fmtPct(k.paidPct));
+    setText("kpi-leadtime", fmtHrs(k.avgLeadHrs));
+
+    setText("kpi-revenue", fmtEur(k.revenue));
+    setText("kpi-gm-eur", fmtEur(k.revenue));
+    setText("kpi-gm-pct", fmtPct(k.takeRate));
+    const denom = (k.pre + k.post) || 1;
+    setText("kpi-prepost", `${fmtPct(k.pre/denom)} pre · ${fmtPct(k.post/denom)} post`);
+
+    setText("kpi-driver-saving", fmtEur(k.saving));
+
+    // Trends
+    const t = trendDaily(rows);
+
+    destroyChart("execVolumes");
     charts.execVolumes = new Chart(document.getElementById("chartExecVolumes"), {
       type: "bar",
-      data: { labels: demo.labels, datasets: [
-        { label: "Italiani", data: demo.volumes.it, stack: "s1" },
-        { label: "Stranieri", data: demo.volumes.foreign, stack: "s1" }
+      data: { labels: t.labels, datasets: [
+        { label: "Italiani", data: t.it, stack: "s1" },
+        { label: "Stranieri", data: t.foreign, stack: "s1" }
       ]},
       options: {
         ...baseOptions(),
-        scales: {
-          x: { stacked:true, ticks:{ color:"#93a4c7" }, grid:{ color:"rgba(34,48,85,.35)" } },
-          y: { stacked:true, ticks:{ color:"#93a4c7" }, grid:{ color:"rgba(34,48,85,.35)" } }
-        }
+        scales: { x:{ stacked:true, ticks:{color:"#93a4c7"}, grid:{color:"rgba(34,48,85,.35)"} },
+                  y:{ stacked:true, ticks:{color:"#93a4c7"}, grid:{color:"rgba(34,48,85,.35)"} } }
       }
     });
 
+    destroyChart("execFinance");
     charts.execFinance = new Chart(document.getElementById("chartExecFinance"), {
       type: "line",
-      data: { labels: demo.labels, datasets: [
-        { label: "Ricavi (€)", data: demo.finance.revenue, yAxisID: "y" },
-        { label: "Margine Lordo (%)", data: demo.finance.gmPct.map(x=>x*100), yAxisID: "y1" }
+      data: { labels: t.labels, datasets: [
+        { label: "Ricavi (€)", data: t.revenue, yAxisID: "y" },
+        { label: "Take Rate (%)", data: t.takeRate, yAxisID: "y1" }
       ]},
       options: {
         ...baseOptions(),
@@ -496,54 +753,104 @@
       }
     });
 
+    destroyChart("driverSaving");
     charts.driverSaving = new Chart(document.getElementById("chartDriverSaving"), {
       type: "bar",
-      data: { labels: demo.labels, datasets: [{ label: "Risparmio Driver (€)", data: demo.driverSaving }] },
+      data: { labels: t.labels, datasets: [{ label: "Risparmio Driver (stima €)", data: t.saving }] },
       options: baseOptions()
     });
 
+    // Economica per cliente
+    const pc = perClient(rows);
+
+    // Breakdown top 5 per volumi: stack ImportoPA vs Fee+OTP vs Comm (solo per lettura veloce)
+    const top = pc.slice(0, 5);
+    const labelsTop = top.map(x => x.client);
+    const importoPA = top.map(x => x.importoPA);
+    const feeOtp = top.map(x => x.feeOtp);
+    const comm = top.map(x => x.comm);
+
+    destroyChart("amountBreakdown");
     charts.amountBreakdown = new Chart(document.getElementById("chartAmountBreakdown"), {
       type: "bar",
-      data: {
-        labels: demo.amountBreakdown.labels,
-        datasets: [
-          { label: "Importo sanzioni (€)", data: demo.amountBreakdown.sanction, stack: "s2" },
-          { label: "Servizi app (OTP + comm.) (€)", data: demo.amountBreakdown.appFees, stack: "s2" },
-          { label: "Gestione pratiche (€)", data: demo.amountBreakdown.handling, stack: "s2" }
-        ]
-      },
+      data: { labels: labelsTop, datasets: [
+        { label: "Importo PA (€)", data: importoPA, stack: "s2" },
+        { label: "Fee + OTP (€)", data: feeOtp, stack: "s2" },
+        { label: "Commissioni (€)", data: comm, stack: "s2" },
+      ]},
       options: {
         ...baseOptions(),
-        scales: {
-          x: { stacked:true, ticks:{ color:"#93a4c7" }, grid:{ color:"rgba(34,48,85,.35)" } },
-          y: { stacked:true, ticks:{ color:"#93a4c7" }, grid:{ color:"rgba(34,48,85,.35)" } }
-        }
+        scales: { x:{ stacked:true, ticks:{color:"#93a4c7"}, grid:{color:"rgba(34,48,85,.35)"} },
+                  y:{ stacked:true, ticks:{color:"#93a4c7"}, grid:{color:"rgba(34,48,85,.35)"} } }
       }
     });
 
+    destroyChart("marginsByClient");
     charts.marginsByClient = new Chart(document.getElementById("chartMarginsByClient"), {
       type: "bar",
-      data: {
-        labels: demo.marginsByClient.labels,
-        datasets: [{ label: "Margine Lordo (%)", data: demo.marginsByClient.gmPct.map(x=>x*100) }]
-      },
+      data: { labels: pc.slice(0, 10).map(x => x.client),
+              datasets: [{ label: "Take Rate (%)", data: pc.slice(0, 10).map(x => x.takeRate*100) }] },
       options: baseOptions()
     });
 
+    // Tabella per cliente
+    const tbody = document.querySelector("#tbl-payments tbody");
+    tbody.innerHTML = "";
+    for (const r of pc) {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td>${r.client}</td>
+        <td>${fmtInt(r.cases)}</td>
+        <td>${fmtEur(r.totalPaid)}</td>
+        <td>${fmtEur(r.importoPA)}</td>
+        <td>${fmtEur(r.feeOtp)}</td>
+        <td>${fmtEur(r.comm)}</td>
+        <td>${fmtEur(r.revenue)}</td>
+        <td>${fmtPct(r.takeRate)}</td>
+      `;
+      tbody.appendChild(tr);
+    }
+
+    // OPS
+    const ot = opsTrends(rows);
+    const plusAvg = ot.plus.filter(x => x>0);
+    const stdAvg = ot.std.filter(x => x>0);
+    const slaAvg = ot.slaAvg.filter(x => x>0);
+    const closePlus = plusAvg.length ? plusAvg.reduce((a,b)=>a+b,0)/plusAvg.length : 0;
+    const closeStd = stdAvg.length ? stdAvg.reduce((a,b)=>a+b,0)/stdAvg.length : 0;
+    const slaMean = slaAvg.length ? slaAvg.reduce((a,b)=>a+b,0)/slaAvg.length : 0;
+    const compMean = ot.slaComp.length ? ot.slaComp.reduce((a,b)=>a+b,0)/ot.slaComp.length : 0;
+
+    // reassign mean (non giornaliero, calcolo veloce)
+    let reassignArr = [];
+    for (const r of rows) {
+      const di = parseITDate(r["Data Inserimento"]);
+      const dr = parseITDate(r["Data Rinotifica"]);
+      if (di && dr && dr >= di) reassignArr.push((dr-di)/3600000);
+    }
+    const reassignMean = reassignArr.length ? reassignArr.reduce((a,b)=>a+b,0)/reassignArr.length : 0;
+
+    setText("kpi-close-plus", fmtHrs(closePlus));
+    setText("kpi-close-service", fmtHrs(closeStd));
+    setText("kpi-reassign", fmtHrs(reassignMean));
+    setText("kpi-sla-pay", (isFinite(compMean) ? compMean.toFixed(1) : "0.0") + "%");
+
+    destroyChart("opsClose");
     charts.opsClose = new Chart(document.getElementById("chartOpsClose"), {
       type: "line",
-      data: { labels: demo.labels, datasets: [
-        { label: "Chiusura Plus (h)", data: demo.ops.closePlusHrs },
-        { label: "Chiusura Service (h)", data: demo.ops.closeServHrs }
+      data: { labels: ot.labels, datasets: [
+        { label: "Chiusura Service Plus (h)", data: ot.plus },
+        { label: "Chiusura Standard (h)", data: ot.std }
       ]},
       options: baseOptions()
     });
 
+    destroyChart("opsSla");
     charts.opsSla = new Chart(document.getElementById("chartOpsSla"), {
       type: "line",
-      data: { labels: demo.labels, datasets: [
-        { label: "Tempo pagamento (h)", data: demo.ops.paymentLeadHrs, yAxisID:"y" },
-        { label: "Compliance SLA 72h (%)", data: demo.ops.sla72Compliance.map(x=>x*100), yAxisID:"y1" }
+      data: { labels: ot.labels, datasets: [
+        { label: "Tempo medio pagamento post comunicazione (h)", data: ot.slaAvg, yAxisID:"y" },
+        { label: "Compliance SLA 72h (%)", data: ot.slaComp, yAxisID:"y1" }
       ]},
       options: {
         ...baseOptions(),
@@ -555,51 +862,36 @@
       }
     });
 
-    charts.shortlinkRates = new Chart(document.getElementById("chartShortlinkRates"), {
-      type: "line",
-      data: { labels: demo.labels, datasets: [
-        { label: "Open Rate (%)", data: demo.shortlink.openRate.map(x=>x*100) },
-        { label: "Registration Rate (%)", data: demo.shortlink.regRate.map(x=>x*100) },
-        { label: "Payment Rate (%)", data: demo.shortlink.payRate.map(x=>x*100) }
-      ]},
-      options: baseOptions()
-    });
+    // Shortlink proxy
+    const s = shortlinkProxy(rows);
+    setText("kpi-sent", fmtInt(s.sent));
+    setText("kpi-delivery-rate", fmtPct(s.sent ? s.delivered/s.sent : 0));
+    setText("kpi-no-open", fmtPct(s.delivered ? (s.delivered - s.open)/s.delivered : 0));
+    setText("kpi-open-no-reg", fmtPct(s.open ? (s.open - s.reg)/s.open : 0));
 
-    const s = demo.shortlink;
-    const drop = {
-      "Sent→Delivered": 1 - (s.del/s.sent),
-      "Delivered→Open": 1 - (s.open/s.del),
-      "Open→Reg": 1 - (s.reg/s.open),
-      "Reg→Sign": 1 - (s.sign/s.reg),
-      "Sign→Pay": 1 - (s.pay/s.sign),
-    };
-    charts.dropoff = new Chart(document.getElementById("chartDropoff"), {
-      type: "bar",
-      data: { labels: Object.keys(drop), datasets: [{ label: "Drop-off (%)", data: Object.values(drop).map(x=>x*100) }] },
-      options: baseOptions()
-    });
+    setText("f-step-sent", fmtInt(s.sent));
+    setText("f-step-del", fmtInt(s.delivered));
+    setText("f-step-open", fmtInt(s.open));
+    setText("f-step-reg", fmtInt(s.reg));
+    setText("f-step-cover", fmtInt(s.cover));
+    setText("f-step-od", fmtInt(s.od));
+    setText("f-step-pay", fmtInt(s.pay));
+
+    destroyChart("itForeign");
+    const itOpenRate = s.delSplit.it ? (s.openSplit.it / s.delSplit.it) * 100 : 0;
+    const frOpenRate = s.delSplit.fr ? (s.openSplit.fr / s.delSplit.fr) * 100 : 0;
+    const itRegRate = s.openSplit.it ? (s.regSplit.it / s.openSplit.it) * 100 : 0;
+    const frRegRate = s.openSplit.fr ? (s.regSplit.fr / s.openSplit.fr) * 100 : 0;
+    const itPayRate = s.regSplit.it ? (s.paySplit.it / s.regSplit.it) * 100 : 0;
+    const frPayRate = s.regSplit.fr ? (s.paySplit.fr / s.regSplit.fr) * 100 : 0;
 
     charts.itForeign = new Chart(document.getElementById("chartItForeign"), {
       type: "bar",
       data: {
-        labels: ["Open", "Registrazione", "Pagamento"],
+        labels: ["Open Rate", "Registration Rate", "Payment Rate"],
         datasets: [
-          {
-            label: "Italiani",
-            data: [
-              demo.shortlink.it.open / demo.shortlink.it.del * 100,
-              demo.shortlink.it.reg / demo.shortlink.it.open * 100,
-              demo.shortlink.it.pay / demo.shortlink.it.reg * 100
-            ]
-          },
-          {
-            label: "Stranieri",
-            data: [
-              demo.shortlink.foreign.open / demo.shortlink.foreign.del * 100,
-              demo.shortlink.foreign.reg / demo.shortlink.foreign.open * 100,
-              demo.shortlink.foreign.pay / demo.shortlink.foreign.reg * 100
-            ]
-          }
+          { label: "Italiani", data: [itOpenRate, itRegRate, itPayRate] },
+          { label: "Stranieri", data: [frOpenRate, frRegRate, frPayRate] }
         ]
       },
       options: baseOptions()
@@ -607,35 +899,59 @@
   }
 
   // -----------------------
-  // Table (demo)
+  // CSV load
   // -----------------------
-  function renderPaymentsTable() {
-    const tbody = document.querySelector("#tbl-payments tbody");
-    tbody.innerHTML = "";
-    for (const r of demo.paymentsTable) {
-      const tr = document.createElement("tr");
-      tr.innerHTML = `
-        <td>${r.client}</td>
-        <td>${fmtInt(r.tx)}</td>
-        <td>${fmtEur(r.gross)}</td>
-        <td>${fmtEur(r.fee)}</td>
-        <td>${fmtEur(r.comm)}</td>
-        <td>${fmtPct(r.gmPct)}</td>
-      `;
-      tbody.appendChild(tr);
+  function populateClients(rows) {
+    const sel = document.getElementById("f-client");
+    sel.innerHTML = "";
+    const clients = Array.from(new Set(rows.map(r => (r["Società"] || "").trim()).filter(Boolean))).sort();
+    for (const c of clients) {
+      const opt = document.createElement("option");
+      opt.value = c; opt.textContent = c;
+      sel.appendChild(opt);
     }
   }
 
-  // Init
-  renderKpis();
-  renderPaymentsTable();
-  renderCharts();
+  document.getElementById("fileCsv").addEventListener("change", (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
 
-  // Demo buttons
-  document.getElementById("btn-apply").addEventListener("click", () => {
-    alert("Demo: qui collegherai le chiamate API / ricalcolo KPI in base ai filtri (client multi-select incluso).");
+    document.getElementById("fileInfo").textContent = `Caricato: ${file.name} (${Math.round(file.size/1024)} KB)`;
+
+    Papa.parse(file, {
+      header: true,
+      skipEmptyLines: true,
+      delimiter: ";",
+      complete: (res) => {
+        // pulizia: rimuovi righe totalmente vuote
+        RAW = (res.data || []).filter(r => r && Object.values(r).some(v => String(v ?? "").trim() !== ""));
+        populateClients(RAW);
+
+        // suggerisci periodo automaticamente (min/max Data Inserimento)
+        const dates = RAW.map(r => parseITDate(r["Data Inserimento"])).filter(Boolean).sort((a,b)=>a-b);
+        if (dates.length) {
+          const min = dates[0], max = dates[dates.length-1];
+          const f = (d) => `${d.getUTCFullYear()}-${String(d.getUTCMonth()+1).padStart(2,"0")}-${String(d.getUTCDate()).padStart(2,"0")}`;
+          document.getElementById("f-period").value = `${f(min)} → ${f(max)}`;
+        }
+
+        renderAll();
+      },
+      error: (err) => {
+        alert("Errore parsing CSV: " + err.message);
+      }
+    });
   });
-  document.getElementById("btn-reset").addEventListener("click", () => location.reload());
+
+  // Buttons
+  document.getElementById("btn-apply").addEventListener("click", () => {
+    if (!RAW.length) return alert("Carica prima un CSV.");
+    renderAll();
+  });
+
+  document.getElementById("btn-reset").addEventListener("click", () => {
+    location.reload();
+  });
 </script>
 
 </body>
