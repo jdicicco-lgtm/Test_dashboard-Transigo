@@ -15,7 +15,7 @@
     nav a { color:var(--muted); margin-right:14px; text-decoration:none; }
     nav a.active { color:var(--text); font-weight:600; }
     .container { padding:16px 18px 40px; max-width:1400px; margin:0 auto; }
-    .filters { display:grid; grid-template-columns: 220px 240px 240px 160px 180px auto; gap:10px; align-items:end; padding:12px; background:var(--card); border:1px solid var(--line); border-radius:12px; }
+    .filters { display:grid; grid-template-columns: 220px 360px 160px 180px auto; gap:10px; align-items:end; padding:12px; background:var(--card); border:1px solid var(--line); border-radius:12px; }
     label { font-size:12px; color:var(--muted); display:block; margin-bottom:6px; }
     select, input { width:100%; padding:10px; border-radius:10px; border:1px solid var(--line); background:#0e1730; color:var(--text); }
     .btn { padding:10px 12px; border-radius:10px; border:1px solid var(--line); background:#0e1730; color:var(--text); cursor:pointer; }
@@ -57,30 +57,29 @@
 
 <div class="container">
 
-  <!-- FILTRI GLOBALI (demo: non filtrano davvero, ma c’è lo scheletro pronto) -->
+  <!-- FILTRI GLOBALI -->
   <section class="filters" id="filters">
     <div>
       <label>Periodo</label>
       <input type="text" id="f-period" placeholder="2025-12-01 → 2025-12-31" value="2025-12-01 → 2025-12-31" />
     </div>
+
     <div>
       <label>Cliente (Noleggiatore)</label>
-      <select id="f-client">
-        <option value="">Tutti</option>
-        <option value="Hertz">Hertz</option>
-        <option value="Avis">Avis</option>
-        <option value="LocalRent">LocalRent</option>
+      <select id="f-client" multiple>
+        <option value="Vivarent">Vivarent</option>
+        <option value="BuyFleet">BuyFleet</option>
+        <option value="Rental Plus">Rental Plus</option>
+        <option value="WayCar - TurismoSanVitoLoCapo">WayCar - TurismoSanVitoLoCapo</option>
+        <option value="Italy Car Rent">Italy Car Rent</option>
+        <option value="All Rent | U-SAVE">All Rent | U-SAVE</option>
+        <option value="Differental - ITA RENT S.r.l.">Differental - ITA RENT S.r.l.</option>
+        <option value="Stairway Rent S.r.l">Stairway Rent S.r.l</option>
+        <option value="Etna Rent S.a.S.">Etna Rent S.a.S.</option>
+        <option value="Clarent S.r.l.">Clarent S.r.l.</option>
       </select>
     </div>
-    <div>
-      <label>Sede</label>
-      <select id="f-site" multiple>
-        <option value="MXP">MXP</option>
-        <option value="FCO">FCO</option>
-        <option value="LIN">LIN</option>
-        <option value="NAP">NAP</option>
-      </select>
-    </div>
+
     <div>
       <label>Canale</label>
       <select id="f-channel">
@@ -89,6 +88,7 @@
         <option value="B2C">B2C</option>
       </select>
     </div>
+
     <div>
       <label>Nazionalità</label>
       <select id="f-nation">
@@ -97,6 +97,7 @@
         <option value="FOREIGN">Stranieri</option>
       </select>
     </div>
+
     <div style="display:flex; gap:10px; justify-content:flex-end;">
       <button class="btn" id="btn-apply">Applica</button>
       <button class="btn" id="btn-reset">Reset</button>
@@ -183,8 +184,8 @@
         <div class="chartWrap"><canvas id="chartAmountBreakdown"></canvas></div>
       </div>
       <div class="card">
-        <div class="kpi-title">Heatmap “fake” margini Cliente × Sede (bar)</div>
-        <div class="chartWrap"><canvas id="chartMarginsByClientSite"></canvas></div>
+        <div class="kpi-title">“Heatmap proxy” margini per Cliente</div>
+        <div class="chartWrap"><canvas id="chartMarginsByClient"></canvas></div>
       </div>
     </div>
 
@@ -193,7 +194,7 @@
       <table id="tbl-payments">
         <thead>
           <tr>
-            <th>Cliente</th><th>Sede</th><th>Transazioni</th><th>Incassato €</th><th>Fee €</th><th>Commissioni €</th><th>Margine %</th>
+            <th>Cliente</th><th>Transazioni</th><th>Incassato €</th><th>Fee €</th><th>Commissioni €</th><th>Margine %</th>
           </tr>
         </thead>
         <tbody></tbody>
@@ -261,7 +262,7 @@
 
     <div class="grid two">
       <div class="card">
-        <div class="kpi-title">Funnel conversione (valori + rate)</div>
+        <div class="kpi-title">Funnel conversione (valori)</div>
         <div class="funnel" id="funnel">
           <div class="funnel-step">Notifica inviata: <strong id="f-step-sent">—</strong></div>
           <div class="funnel-step">Delivered: <strong id="f-step-del">—</strong></div>
@@ -292,8 +293,21 @@
 
 <script>
   // -----------------------
-  // Mock data (esempio)
+  // Mock data (demo)
   // -----------------------
+  const CLIENTS = [
+    "Vivarent",
+    "BuyFleet",
+    "Rental Plus",
+    "WayCar - TurismoSanVitoLoCapo",
+    "Italy Car Rent",
+    "All Rent | U-SAVE",
+    "Differental - ITA RENT S.r.l.",
+    "Stairway Rent S.r.l",
+    "Etna Rent S.a.S.",
+    "Clarent S.r.l."
+  ];
+
   const demo = {
     labels: ["01", "02", "03", "04", "05", "06", "07", "08", "09", "10", "11", "12", "13", "14"],
 
@@ -312,25 +326,32 @@
 
     driverSaving: [620, 680, 710, 690, 760, 820, 790, 870, 910, 880, 950, 980, 960, 1030],
 
+    // Economica: breakdown su subset (3) per non affollare
     amountBreakdown: {
-      labels: ["Hertz", "Avis", "LocalRent"],
+      labels: ["Vivarent", "BuyFleet", "Rental Plus"],
       sanction:  [52000, 39000, 21000],
-      appFees:   [ 8200,  6400,  3300],  // OTP + commissioni
-      handling:  [ 6100,  5200,  2900],  // gestione pratiche
+      appFees:   [ 8200,  6400,  3300],
+      handling:  [ 6100,  5200,  2900],
     },
 
-    marginsClientSite: {
-      labels: ["Hertz-MXP","Hertz-FCO","Avis-MXP","Avis-FCO","LocalRent-LIN","LocalRent-NAP"],
-      gmPct:   [0.46, 0.41, 0.44, 0.38, 0.49, 0.42]
+    // Economica: margine per cliente (proxy heatmap)
+    marginsByClient: {
+      labels: CLIENTS,
+      gmPct: [0.46,0.41,0.44,0.38,0.49,0.42,0.40,0.45,0.43,0.47]
     },
 
+    // Tabella pagamenti per cliente (demo)
     paymentsTable: [
-      {client:"Hertz", site:"MXP", tx:420, gross:38200, fee:6100, comm:2100, gmPct:0.46},
-      {client:"Hertz", site:"FCO", tx:310, gross:29800, fee:4700, comm:1800, gmPct:0.41},
-      {client:"Avis", site:"MXP", tx:280, gross:24100, fee:3900, comm:1500, gmPct:0.44},
-      {client:"Avis", site:"FCO", tx:240, gross:21500, fee:3400, comm:1600, gmPct:0.38},
-      {client:"LocalRent", site:"LIN", tx:150, gross:13200, fee:2200, comm:700, gmPct:0.49},
-      {client:"LocalRent", site:"NAP", tx:170, gross:14800, fee:2500, comm:900, gmPct:0.42},
+      {client:"Vivarent", tx:220, gross:18200, fee:3100, comm:1100, gmPct:0.46},
+      {client:"BuyFleet", tx:160, gross:14100, fee:2400, comm:900,  gmPct:0.41},
+      {client:"Rental Plus", tx:140, gross:12100, fee:2100, comm:700, gmPct:0.44},
+      {client:"WayCar - TurismoSanVitoLoCapo", tx:90, gross:8200, fee:1400, comm:600, gmPct:0.38},
+      {client:"Italy Car Rent", tx:120, gross:9900, fee:1700, comm:500, gmPct:0.49},
+      {client:"All Rent | U-SAVE", tx:110, gross:9100, fee:1600, comm:500, gmPct:0.42},
+      {client:"Differental - ITA RENT S.r.l.", tx:130, gross:10800, fee:1900, comm:650, gmPct:0.40},
+      {client:"Stairway Rent S.r.l", tx:105, gross:8700, fee:1500, comm:520, gmPct:0.45},
+      {client:"Etna Rent S.a.S.", tx:115, gross:9400, fee:1600, comm:550, gmPct:0.43},
+      {client:"Clarent S.r.l.", tx:150, gross:12600, fee:2200, comm:700, gmPct:0.47},
     ],
 
     ops: {
@@ -342,7 +363,6 @@
     },
 
     shortlink: {
-      // funnel totali nel periodo (demo)
       sent:  1200,
       del:   1090,
       open:   730,
@@ -352,12 +372,10 @@
       sign:   390,
       pay:    340,
 
-      // trend rates per giorno (demo)
       openRate: [0.64,0.65,0.63,0.66,0.67,0.68,0.66,0.69,0.70,0.68,0.71,0.72,0.71,0.73],
       regRate:  [0.61,0.60,0.62,0.63,0.62,0.64,0.63,0.65,0.66,0.64,0.66,0.67,0.66,0.68],
       payRate:  [0.73,0.74,0.72,0.75,0.75,0.76,0.75,0.77,0.78,0.77,0.79,0.80,0.79,0.81],
 
-      // split IT vs Foreign (demo)
       it:      {del: 640, open: 450, reg: 300, pay: 230},
       foreign: {del: 450, open: 280, reg: 160, pay: 110},
     }
@@ -370,7 +388,6 @@
   const fmtEur = (n) => (n ?? 0).toLocaleString("it-IT", { style:"currency", currency:"EUR", maximumFractionDigits:0 });
   const fmtPct = (x) => ((x ?? 0) * 100).toFixed(1) + "%";
   const fmtHrs = (h) => (h ?? 0).toFixed(1) + " h";
-
   function setText(id, v) { const el = document.getElementById(id); if (el) el.textContent = v; }
 
   // -----------------------
@@ -383,7 +400,6 @@
 
     const identifiedAvg = demo.identifiedPct.reduce((a,b)=>a+b,0) / demo.identifiedPct.length;
     const paidAvg = demo.paidInAppPct.reduce((a,b)=>a+b,0) / demo.paidInAppPct.length;
-
     const leadTimeAvgHrs = demo.ops.paymentLeadHrs.reduce((a,b)=>a+b,0) / demo.ops.paymentLeadHrs.length; // proxy
 
     setText("kpi-cases", fmtInt(totalCases));
@@ -394,14 +410,11 @@
 
     const revenueTotal = demo.finance.revenue.reduce((a,b)=>a+b,0);
     const gmAvg = demo.finance.gmPct.reduce((a,b)=>a+b,0) / demo.finance.gmPct.length;
-
     setText("kpi-revenue", fmtEur(revenueTotal));
-    // margine € demo: revenue * gm%
     setText("kpi-gm-eur", fmtEur(revenueTotal * gmAvg));
     setText("kpi-gm-pct", fmtPct(gmAvg));
 
-    const pre = 0.58; // demo
-    const post = 0.42; // demo
+    const pre = 0.58, post = 0.42; // demo
     setText("kpi-prepost", `${fmtPct(pre)} pre · ${fmtPct(post)} post`);
 
     const savingTotal = demo.driverSaving.reduce((a,b)=>a+b,0);
@@ -436,18 +449,14 @@
   }
 
   // -----------------------
-  // Charts (Chart.js)
+  // Charts
   // -----------------------
   const charts = {};
-
   function baseOptions() {
     return {
       responsive: true,
       maintainAspectRatio: false,
-      plugins: {
-        legend: { labels: { color: "#eaf0ff" } },
-        tooltip: { enabled: true }
-      },
+      plugins: { legend: { labels: { color: "#eaf0ff" } } },
       scales: {
         x: { ticks: { color: "#93a4c7" }, grid: { color: "rgba(34,48,85,.35)" } },
         y: { ticks: { color: "#93a4c7" }, grid: { color: "rgba(34,48,85,.35)" } }
@@ -456,61 +465,43 @@
   }
 
   function renderCharts() {
-    // Executive Volumes (stacked bar)
     charts.execVolumes = new Chart(document.getElementById("chartExecVolumes"), {
       type: "bar",
-      data: {
-        labels: demo.labels,
-        datasets: [
-          { label: "Italiani", data: demo.volumes.it, stack: "s1" },
-          { label: "Stranieri", data: demo.volumes.foreign, stack: "s1" }
-        ]
-      },
+      data: { labels: demo.labels, datasets: [
+        { label: "Italiani", data: demo.volumes.it, stack: "s1" },
+        { label: "Stranieri", data: demo.volumes.foreign, stack: "s1" }
+      ]},
       options: {
         ...baseOptions(),
         scales: {
-          x: { stacked: true, ticks:{ color:"#93a4c7" }, grid:{ color:"rgba(34,48,85,.35)" } },
-          y: { stacked: true, ticks:{ color:"#93a4c7" }, grid:{ color:"rgba(34,48,85,.35)" } }
+          x: { stacked:true, ticks:{ color:"#93a4c7" }, grid:{ color:"rgba(34,48,85,.35)" } },
+          y: { stacked:true, ticks:{ color:"#93a4c7" }, grid:{ color:"rgba(34,48,85,.35)" } }
         }
       }
     });
 
-    // Executive Finance (2 lines, 2 assi)
     charts.execFinance = new Chart(document.getElementById("chartExecFinance"), {
       type: "line",
-      data: {
-        labels: demo.labels,
-        datasets: [
-          { label: "Ricavi (€)", data: demo.finance.revenue, yAxisID: "y" },
-          { label: "Margine Lordo (%)", data: demo.finance.gmPct.map(x=>x*100), yAxisID: "y1" }
-        ]
-      },
+      data: { labels: demo.labels, datasets: [
+        { label: "Ricavi (€)", data: demo.finance.revenue, yAxisID: "y" },
+        { label: "Margine Lordo (%)", data: demo.finance.gmPct.map(x=>x*100), yAxisID: "y1" }
+      ]},
       options: {
         ...baseOptions(),
         scales: {
           x: { ticks:{ color:"#93a4c7" }, grid:{ color:"rgba(34,48,85,.35)" } },
-          y: {
-            position: "left",
-            ticks:{ color:"#93a4c7" },
-            grid:{ color:"rgba(34,48,85,.35)" }
-          },
-          y1: {
-            position: "right",
-            ticks:{ color:"#93a4c7" },
-            grid:{ drawOnChartArea:false }
-          }
+          y: { position:"left", ticks:{ color:"#93a4c7" }, grid:{ color:"rgba(34,48,85,.35)" } },
+          y1:{ position:"right", ticks:{ color:"#93a4c7" }, grid:{ drawOnChartArea:false } }
         }
       }
     });
 
-    // Driver Saving (bar)
     charts.driverSaving = new Chart(document.getElementById("chartDriverSaving"), {
       type: "bar",
       data: { labels: demo.labels, datasets: [{ label: "Risparmio Driver (€)", data: demo.driverSaving }] },
       options: baseOptions()
     });
 
-    // Amount breakdown (stacked bar)
     charts.amountBreakdown = new Chart(document.getElementById("chartAmountBreakdown"), {
       type: "bar",
       data: {
@@ -530,39 +521,30 @@
       }
     });
 
-    // Margins by client-site (bar, proxy heatmap)
-    charts.marginsClientSite = new Chart(document.getElementById("chartMarginsByClientSite"), {
+    charts.marginsByClient = new Chart(document.getElementById("chartMarginsByClient"), {
       type: "bar",
       data: {
-        labels: demo.marginsClientSite.labels,
-        datasets: [{ label: "Margine Lordo (%)", data: demo.marginsClientSite.gmPct.map(x=>x*100) }]
+        labels: demo.marginsByClient.labels,
+        datasets: [{ label: "Margine Lordo (%)", data: demo.marginsByClient.gmPct.map(x=>x*100) }]
       },
       options: baseOptions()
     });
 
-    // Ops Close times (2 lines)
     charts.opsClose = new Chart(document.getElementById("chartOpsClose"), {
       type: "line",
-      data: {
-        labels: demo.labels,
-        datasets: [
-          { label: "Chiusura Plus (h)", data: demo.ops.closePlusHrs },
-          { label: "Chiusura Service (h)", data: demo.ops.closeServHrs }
-        ]
-      },
+      data: { labels: demo.labels, datasets: [
+        { label: "Chiusura Plus (h)", data: demo.ops.closePlusHrs },
+        { label: "Chiusura Service (h)", data: demo.ops.closeServHrs }
+      ]},
       options: baseOptions()
     });
 
-    // Ops SLA (line + compliance % su asse secondario)
     charts.opsSla = new Chart(document.getElementById("chartOpsSla"), {
       type: "line",
-      data: {
-        labels: demo.labels,
-        datasets: [
-          { label: "Tempo pagamento (h)", data: demo.ops.paymentLeadHrs, yAxisID:"y" },
-          { label: "Compliance SLA 72h (%)", data: demo.ops.sla72Compliance.map(x=>x*100), yAxisID:"y1" }
-        ]
-      },
+      data: { labels: demo.labels, datasets: [
+        { label: "Tempo pagamento (h)", data: demo.ops.paymentLeadHrs, yAxisID:"y" },
+        { label: "Compliance SLA 72h (%)", data: demo.ops.sla72Compliance.map(x=>x*100), yAxisID:"y1" }
+      ]},
       options: {
         ...baseOptions(),
         scales: {
@@ -573,21 +555,16 @@
       }
     });
 
-    // Shortlink rates (3 lines)
     charts.shortlinkRates = new Chart(document.getElementById("chartShortlinkRates"), {
       type: "line",
-      data: {
-        labels: demo.labels,
-        datasets: [
-          { label: "Open Rate (%)", data: demo.shortlink.openRate.map(x=>x*100) },
-          { label: "Registration Rate (%)", data: demo.shortlink.regRate.map(x=>x*100) },
-          { label: "Payment Rate (%)", data: demo.shortlink.payRate.map(x=>x*100) }
-        ]
-      },
+      data: { labels: demo.labels, datasets: [
+        { label: "Open Rate (%)", data: demo.shortlink.openRate.map(x=>x*100) },
+        { label: "Registration Rate (%)", data: demo.shortlink.regRate.map(x=>x*100) },
+        { label: "Payment Rate (%)", data: demo.shortlink.payRate.map(x=>x*100) }
+      ]},
       options: baseOptions()
     });
 
-    // Drop-off per step (bar)
     const s = demo.shortlink;
     const drop = {
       "Sent→Delivered": 1 - (s.del/s.sent),
@@ -598,14 +575,10 @@
     };
     charts.dropoff = new Chart(document.getElementById("chartDropoff"), {
       type: "bar",
-      data: {
-        labels: Object.keys(drop),
-        datasets: [{ label: "Drop-off (%)", data: Object.values(drop).map(x=>x*100) }]
-      },
+      data: { labels: Object.keys(drop), datasets: [{ label: "Drop-off (%)", data: Object.values(drop).map(x=>x*100) }] },
       options: baseOptions()
     });
 
-    // IT vs Foreign (grouped bar)
     charts.itForeign = new Chart(document.getElementById("chartItForeign"), {
       type: "bar",
       data: {
@@ -643,7 +616,6 @@
       const tr = document.createElement("tr");
       tr.innerHTML = `
         <td>${r.client}</td>
-        <td>${r.site}</td>
         <td>${fmtInt(r.tx)}</td>
         <td>${fmtEur(r.gross)}</td>
         <td>${fmtEur(r.fee)}</td>
@@ -654,20 +626,16 @@
     }
   }
 
-  // -----------------------
   // Init
-  // -----------------------
   renderKpis();
   renderPaymentsTable();
   renderCharts();
 
-  // Demo: i pulsanti non ricalcolano i grafici (è già pronto per collegare fetch e re-render)
+  // Demo buttons
   document.getElementById("btn-apply").addEventListener("click", () => {
-    alert("Demo: qui collegherai le chiamate API / ricalcolo KPI in base ai filtri.");
+    alert("Demo: qui collegherai le chiamate API / ricalcolo KPI in base ai filtri (client multi-select incluso).");
   });
-  document.getElementById("btn-reset").addEventListener("click", () => {
-    location.reload();
-  });
+  document.getElementById("btn-reset").addEventListener("click", () => location.reload());
 </script>
 
 </body>
