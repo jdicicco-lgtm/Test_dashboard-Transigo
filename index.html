@@ -3,11 +3,15 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Transigo KPI Dashboard</title>
+  <title>Transigo KPI Dashboard (Demo)</title>
+
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+
   <style>
     :root { --bg:#0b1220; --card:#121b2e; --muted:#93a4c7; --text:#eaf0ff; --line:#223055; }
     body { margin:0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial; background:var(--bg); color:var(--text); }
-    header { display:flex; align-items:center; justify-content:space-between; padding:14px 18px; border-bottom:1px solid var(--line); position:sticky; top:0; background:rgba(11,18,32,.92); backdrop-filter: blur(8px); }
+    header { display:flex; align-items:center; justify-content:space-between; padding:14px 18px; border-bottom:1px solid var(--line); position:sticky; top:0; background:rgba(11,18,32,.92); backdrop-filter: blur(8px); z-index: 10;}
     nav a { color:var(--muted); margin-right:14px; text-decoration:none; }
     nav a.active { color:var(--text); font-weight:600; }
     .container { padding:16px 18px 40px; max-width:1400px; margin:0 auto; }
@@ -24,15 +28,16 @@
     .kpi-title { font-size:12px; color:var(--muted); }
     .kpi-value { font-size:26px; font-weight:700; margin-top:4px; }
     .kpi-sub { font-size:12px; color:var(--muted); margin-top:6px; }
-    .chart { height:260px; display:flex; align-items:center; justify-content:center; color:var(--muted); border:1px dashed var(--line); border-radius:12px; }
+    .chartWrap { height:290px; }
+    .chartWrap.sm { height:240px; }
+    canvas { width:100% !important; height:100% !important; }
     .funnel { display:grid; gap:10px; }
     .funnel-step { padding:10px; border-radius:12px; border:1px solid var(--line); background:#0e1730; }
-    .heatmap { height:320px; display:flex; align-items:center; justify-content:center; color:var(--muted); border:1px dashed var(--line); border-radius:12px; }
+    .pill { display:inline-flex; gap:8px; align-items:center; padding:6px 10px; border-radius:999px; border:1px solid var(--line); color:var(--muted); }
     .table { overflow:auto; }
     table { width:100%; border-collapse:collapse; }
     th, td { padding:10px; border-bottom:1px solid var(--line); font-size:13px; color:#d7e3ff; }
     th { text-align:left; color:var(--muted); font-weight:600; }
-    .pill { display:inline-flex; gap:8px; align-items:center; padding:6px 10px; border-radius:999px; border:1px solid var(--line); color:var(--muted); }
   </style>
 </head>
 
@@ -40,7 +45,7 @@
 <header>
   <div style="display:flex; gap:10px; align-items:center;">
     <strong>Transigo</strong>
-    <span class="pill">KPI Monitoring</span>
+    <span class="pill">KPI Monitoring · Demo Data</span>
   </div>
   <nav>
     <a href="#executive" class="active">Executive</a>
@@ -52,19 +57,29 @@
 
 <div class="container">
 
-  <!-- FILTRI GLOBALI -->
+  <!-- FILTRI GLOBALI (demo: non filtrano davvero, ma c’è lo scheletro pronto) -->
   <section class="filters" id="filters">
     <div>
       <label>Periodo</label>
-      <input type="text" id="f-period" placeholder="YYYY-MM-DD → YYYY-MM-DD" />
+      <input type="text" id="f-period" placeholder="2025-12-01 → 2025-12-31" value="2025-12-01 → 2025-12-31" />
     </div>
     <div>
       <label>Cliente (Noleggiatore)</label>
-      <select id="f-client"><option value="">Tutti</option></select>
+      <select id="f-client">
+        <option value="">Tutti</option>
+        <option value="Hertz">Hertz</option>
+        <option value="Avis">Avis</option>
+        <option value="LocalRent">LocalRent</option>
+      </select>
     </div>
     <div>
       <label>Sede</label>
-      <select id="f-site" multiple></select>
+      <select id="f-site" multiple>
+        <option value="MXP">MXP</option>
+        <option value="FCO">FCO</option>
+        <option value="LIN">LIN</option>
+        <option value="NAP">NAP</option>
+      </select>
     </div>
     <div>
       <label>Canale</label>
@@ -93,7 +108,6 @@
     <h2>1) KPI Principali (Vista Executive)</h2>
 
     <div class="grid cards">
-      <!-- Volumi -->
       <div class="card">
         <div class="kpi-title">Multe gestite (periodo)</div>
         <div class="kpi-value" id="kpi-cases">—</div>
@@ -102,30 +116,28 @@
       <div class="card">
         <div class="kpi-title">% Conducente identificato</div>
         <div class="kpi-value" id="kpi-identified">—</div>
-        <div class="kpi-sub">Def: identified / cases</div>
+        <div class="kpi-sub">identified / cases</div>
       </div>
       <div class="card">
         <div class="kpi-title">% Pagate in app</div>
         <div class="kpi-value" id="kpi-paid-inapp">—</div>
-        <div class="kpi-sub">Def: paid_in_app / cases_eligible</div>
+        <div class="kpi-sub">paid_in_app / cases_eligible</div>
       </div>
-
-      <!-- Efficienza -->
       <div class="card">
         <div class="kpi-title">Tempo medio gestione</div>
         <div class="kpi-value" id="kpi-leadtime">—</div>
-        <div class="kpi-sub">Def: infrazione → azione utente</div>
+        <div class="kpi-sub">infrazione → azione utente</div>
       </div>
     </div>
 
     <div class="grid two">
       <div class="card">
-        <div class="kpi-title">Trend volumi / identificazione / pagamenti</div>
-        <div class="chart" id="chart-exec-volumes">[Chart placeholder]</div>
+        <div class="kpi-title">Trend volumi (stack IT/Foreign)</div>
+        <div class="chartWrap"><canvas id="chartExecVolumes"></canvas></div>
       </div>
       <div class="card">
-        <div class="kpi-title">Finanziario (Ricavi, Margine)</div>
-        <div class="chart" id="chart-exec-finance">[Chart placeholder]</div>
+        <div class="kpi-title">Ricavi & Margine (linee)</div>
+        <div class="chartWrap"><canvas id="chartExecFinance"></canvas></div>
       </div>
     </div>
 
@@ -133,11 +145,11 @@
       <div class="card">
         <div class="kpi-title">Risparmio Driver (totale)</div>
         <div class="kpi-value" id="kpi-driver-saving">—</div>
-        <div class="kpi-sub">Def: Σ max(0, baseline_cost - actual_cost)</div>
+        <div class="kpi-sub">Σ max(0, baseline_cost - actual_cost)</div>
       </div>
       <div class="card">
         <div class="kpi-title">Trend risparmio driver</div>
-        <div class="chart" id="chart-driver-saving">[Chart placeholder]</div>
+        <div class="chartWrap sm"><canvas id="chartDriverSaving"></canvas></div>
       </div>
     </div>
   </section>
@@ -160,32 +172,31 @@
         <div class="kpi-value" id="kpi-gm-pct">—</div>
       </div>
       <div class="card">
-        <div class="kpi-title">Pagamenti pre/post sollecito</div>
+        <div class="kpi-title">Pagamenti pre/post sollecito (split)</div>
         <div class="kpi-value" id="kpi-prepost">—</div>
-        <div class="kpi-sub">Split volumi o €</div>
       </div>
     </div>
 
     <div class="grid two">
       <div class="card">
-        <div class="kpi-title">Dettaglio importi (waterfall/stacked)</div>
-        <div class="chart" id="chart-amount-breakdown">[Chart placeholder]</div>
+        <div class="kpi-title">Dettaglio importi (stack)</div>
+        <div class="chartWrap"><canvas id="chartAmountBreakdown"></canvas></div>
       </div>
       <div class="card">
-        <div class="kpi-title">Heatmap margini Cliente × Sede</div>
-        <div class="heatmap" id="heatmap-margins">[Heatmap placeholder]</div>
+        <div class="kpi-title">Heatmap “fake” margini Cliente × Sede (bar)</div>
+        <div class="chartWrap"><canvas id="chartMarginsByClientSite"></canvas></div>
       </div>
     </div>
 
     <div class="card table">
-      <div class="kpi-title">Tabella riconciliazione pagamenti</div>
+      <div class="kpi-title">Tabella riconciliazione pagamenti (demo)</div>
       <table id="tbl-payments">
         <thead>
           <tr>
             <th>Cliente</th><th>Sede</th><th>Transazioni</th><th>Incassato €</th><th>Fee €</th><th>Commissioni €</th><th>Margine %</th>
           </tr>
         </thead>
-        <tbody><!-- rows --></tbody>
+        <tbody></tbody>
       </table>
     </div>
   </section>
@@ -206,22 +217,21 @@
       <div class="card">
         <div class="kpi-title">Tempo medio reintestazione</div>
         <div class="kpi-value" id="kpi-reassign">—</div>
-        <div class="kpi-sub">ready → istanza / decorso</div>
       </div>
       <div class="card">
-        <div class="kpi-title">SLA pagamento post comunicazione</div>
+        <div class="kpi-title">SLA pagamento (entro 72h)</div>
         <div class="kpi-value" id="kpi-sla-pay">—</div>
       </div>
     </div>
 
     <div class="grid two">
       <div class="card">
-        <div class="kpi-title">Trend tempi di chiusura</div>
-        <div class="chart" id="chart-ops-close">[Chart placeholder]</div>
+        <div class="kpi-title">Trend tempi (Plus vs Service)</div>
+        <div class="chartWrap"><canvas id="chartOpsClose"></canvas></div>
       </div>
       <div class="card">
-        <div class="kpi-title">Trend SLA</div>
-        <div class="chart" id="chart-ops-sla">[Chart placeholder]</div>
+        <div class="kpi-title">SLA: tempo medio pagamento + compliance</div>
+        <div class="chartWrap"><canvas id="chartOpsSla"></canvas></div>
       </div>
     </div>
   </section>
@@ -251,9 +261,10 @@
 
     <div class="grid two">
       <div class="card">
-        <div class="kpi-title">Funnel conversione</div>
+        <div class="kpi-title">Funnel conversione (valori + rate)</div>
         <div class="funnel" id="funnel">
           <div class="funnel-step">Notifica inviata: <strong id="f-step-sent">—</strong></div>
+          <div class="funnel-step">Delivered: <strong id="f-step-del">—</strong></div>
           <div class="funnel-step">Link aperto: <strong id="f-step-open">—</strong></div>
           <div class="funnel-step">Registrazione: <strong id="f-step-reg">—</strong> (Cover: <span id="f-step-cover">—</span> / On Demand: <span id="f-step-od">—</span>)</div>
           <div class="funnel-step">Firma: <strong id="f-step-sign">—</strong></div>
@@ -261,57 +272,402 @@
         </div>
       </div>
       <div class="card">
-        <div class="kpi-title">Trend conversioni & drop-off</div>
-        <div class="chart" id="chart-shortlink">[Chart placeholder]</div>
+        <div class="kpi-title">Trend conversion rates</div>
+        <div class="chartWrap"><canvas id="chartShortlinkRates"></canvas></div>
       </div>
     </div>
 
-    <div class="card table">
-      <div class="kpi-title">Drop-off per cliente/sede</div>
-      <table id="tbl-dropoff">
-        <thead>
-          <tr>
-            <th>Cliente</th><th>Sede</th><th>Delivery</th><th>Open Rate</th><th>Registration Rate</th><th>Payment Rate</th>
-          </tr>
-        </thead>
-        <tbody><!-- rows --></tbody>
-      </table>
+    <div class="grid two">
+      <div class="card">
+        <div class="kpi-title">Drop-off per step (bar)</div>
+        <div class="chartWrap"><canvas id="chartDropoff"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="kpi-title">Split IT vs Foreign (Open/Reg/Pay)</div>
+        <div class="chartWrap"><canvas id="chartItForeign"></canvas></div>
+      </div>
     </div>
   </section>
 </div>
 
 <script>
-  // Stato filtri (minimo)
-  const state = {
-    period: null, client: null, sites: [], channel: null, nationality: null
+  // -----------------------
+  // Mock data (esempio)
+  // -----------------------
+  const demo = {
+    labels: ["01", "02", "03", "04", "05", "06", "07", "08", "09", "10", "11", "12", "13", "14"],
+
+    volumes: {
+      it:     [38, 41, 44, 39, 47, 52, 49, 55, 58, 53, 60, 63, 59, 64],
+      foreign:[22, 25, 28, 24, 30, 33, 31, 35, 37, 34, 39, 41, 38, 42],
+    },
+
+    identifiedPct: [0.62,0.63,0.64,0.63,0.65,0.66,0.67,0.66,0.68,0.69,0.70,0.70,0.71,0.72],
+    paidInAppPct:  [0.31,0.32,0.33,0.33,0.34,0.36,0.35,0.37,0.38,0.38,0.39,0.40,0.41,0.42],
+
+    finance: {
+      revenue: [4200, 4500, 4700, 4600, 5100, 5600, 5400, 5900, 6200, 6000, 6600, 6900, 6700, 7200],
+      gmPct:   [0.41, 0.40, 0.42, 0.41, 0.43, 0.44, 0.43, 0.45, 0.46, 0.45, 0.47, 0.48, 0.47, 0.49]
+    },
+
+    driverSaving: [620, 680, 710, 690, 760, 820, 790, 870, 910, 880, 950, 980, 960, 1030],
+
+    amountBreakdown: {
+      labels: ["Hertz", "Avis", "LocalRent"],
+      sanction:  [52000, 39000, 21000],
+      appFees:   [ 8200,  6400,  3300],  // OTP + commissioni
+      handling:  [ 6100,  5200,  2900],  // gestione pratiche
+    },
+
+    marginsClientSite: {
+      labels: ["Hertz-MXP","Hertz-FCO","Avis-MXP","Avis-FCO","LocalRent-LIN","LocalRent-NAP"],
+      gmPct:   [0.46, 0.41, 0.44, 0.38, 0.49, 0.42]
+    },
+
+    paymentsTable: [
+      {client:"Hertz", site:"MXP", tx:420, gross:38200, fee:6100, comm:2100, gmPct:0.46},
+      {client:"Hertz", site:"FCO", tx:310, gross:29800, fee:4700, comm:1800, gmPct:0.41},
+      {client:"Avis", site:"MXP", tx:280, gross:24100, fee:3900, comm:1500, gmPct:0.44},
+      {client:"Avis", site:"FCO", tx:240, gross:21500, fee:3400, comm:1600, gmPct:0.38},
+      {client:"LocalRent", site:"LIN", tx:150, gross:13200, fee:2200, comm:700, gmPct:0.49},
+      {client:"LocalRent", site:"NAP", tx:170, gross:14800, fee:2500, comm:900, gmPct:0.42},
+    ],
+
+    ops: {
+      closePlusHrs:   [29, 30, 31, 30, 28, 27, 26, 27, 25, 26, 24, 24, 23, 22],
+      closeServHrs:   [44, 45, 46, 45, 43, 42, 41, 42, 40, 39, 38, 38, 37, 36],
+      paymentLeadHrs: [80, 78, 76, 74, 72, 70, 68, 69, 66, 65, 63, 62, 60, 59],
+      sla72Compliance:[0.54,0.55,0.56,0.57,0.58,0.60,0.61,0.62,0.64,0.65,0.66,0.67,0.68,0.69],
+      reassignHrs:    [18, 19, 18, 17, 16, 16, 15, 15, 14, 14, 13, 13, 12, 12]
+    },
+
+    shortlink: {
+      // funnel totali nel periodo (demo)
+      sent:  1200,
+      del:   1090,
+      open:   730,
+      reg:    460,
+      cover:  310,
+      od:     150,
+      sign:   390,
+      pay:    340,
+
+      // trend rates per giorno (demo)
+      openRate: [0.64,0.65,0.63,0.66,0.67,0.68,0.66,0.69,0.70,0.68,0.71,0.72,0.71,0.73],
+      regRate:  [0.61,0.60,0.62,0.63,0.62,0.64,0.63,0.65,0.66,0.64,0.66,0.67,0.66,0.68],
+      payRate:  [0.73,0.74,0.72,0.75,0.75,0.76,0.75,0.77,0.78,0.77,0.79,0.80,0.79,0.81],
+
+      // split IT vs Foreign (demo)
+      it:      {del: 640, open: 450, reg: 300, pay: 230},
+      foreign: {del: 450, open: 280, reg: 160, pay: 110},
+    }
   };
 
-  document.getElementById('btn-apply').addEventListener('click', () => {
-    state.period = document.getElementById('f-period').value || null;
-    state.client = document.getElementById('f-client').value || null;
-    state.sites = Array.from(document.getElementById('f-site').selectedOptions).map(o => o.value);
-    state.channel = document.getElementById('f-channel').value || null;
-    state.nationality = document.getElementById('f-nation').value || null;
+  // -----------------------
+  // Helpers (format)
+  // -----------------------
+  const fmtInt = (n) => (n ?? 0).toLocaleString("it-IT");
+  const fmtEur = (n) => (n ?? 0).toLocaleString("it-IT", { style:"currency", currency:"EUR", maximumFractionDigits:0 });
+  const fmtPct = (x) => ((x ?? 0) * 100).toFixed(1) + "%";
+  const fmtHrs = (h) => (h ?? 0).toFixed(1) + " h";
 
-    // TODO: chiamate API backend (consigliato) o calcolo in-browser da dataset già caricato
-    // fetchKpiAndRender(state);
-  });
+  function setText(id, v) { const el = document.getElementById(id); if (el) el.textContent = v; }
 
-  document.getElementById('btn-reset').addEventListener('click', () => {
-    document.getElementById('filters').querySelectorAll('input,select').forEach(el => {
-      if (el.multiple) Array.from(el.options).forEach(o => o.selected = false);
-      else el.value = '';
-    });
-    // fetchKpiAndRender({period:null,client:null,sites:[],channel:null,nationality:null});
-  });
+  // -----------------------
+  // KPI Cards (demo)
+  // -----------------------
+  function renderKpis() {
+    const totalIT = demo.volumes.it.reduce((a,b)=>a+b,0);
+    const totalFR = demo.volumes.foreign.reduce((a,b)=>a+b,0);
+    const totalCases = totalIT + totalFR;
 
-  // Placeholder: render KPI
-  function setText(id, value) {
-    const el = document.getElementById(id);
-    if (el) el.textContent = value ?? '—';
+    const identifiedAvg = demo.identifiedPct.reduce((a,b)=>a+b,0) / demo.identifiedPct.length;
+    const paidAvg = demo.paidInAppPct.reduce((a,b)=>a+b,0) / demo.paidInAppPct.length;
+
+    const leadTimeAvgHrs = demo.ops.paymentLeadHrs.reduce((a,b)=>a+b,0) / demo.ops.paymentLeadHrs.length; // proxy
+
+    setText("kpi-cases", fmtInt(totalCases));
+    setText("kpi-cases-sub", `IT ${fmtInt(totalIT)} · Foreign ${fmtInt(totalFR)}`);
+    setText("kpi-identified", fmtPct(identifiedAvg));
+    setText("kpi-paid-inapp", fmtPct(paidAvg));
+    setText("kpi-leadtime", fmtHrs(leadTimeAvgHrs));
+
+    const revenueTotal = demo.finance.revenue.reduce((a,b)=>a+b,0);
+    const gmAvg = demo.finance.gmPct.reduce((a,b)=>a+b,0) / demo.finance.gmPct.length;
+
+    setText("kpi-revenue", fmtEur(revenueTotal));
+    // margine € demo: revenue * gm%
+    setText("kpi-gm-eur", fmtEur(revenueTotal * gmAvg));
+    setText("kpi-gm-pct", fmtPct(gmAvg));
+
+    const pre = 0.58; // demo
+    const post = 0.42; // demo
+    setText("kpi-prepost", `${fmtPct(pre)} pre · ${fmtPct(post)} post`);
+
+    const savingTotal = demo.driverSaving.reduce((a,b)=>a+b,0);
+    setText("kpi-driver-saving", fmtEur(savingTotal));
+
+    // OPS
+    const closePlusAvg = demo.ops.closePlusHrs.reduce((a,b)=>a+b,0) / demo.ops.closePlusHrs.length;
+    const closeServAvg = demo.ops.closeServHrs.reduce((a,b)=>a+b,0) / demo.ops.closeServHrs.length;
+    const reassignAvg  = demo.ops.reassignHrs.reduce((a,b)=>a+b,0) / demo.ops.reassignHrs.length;
+    const slaAvg       = demo.ops.sla72Compliance.reduce((a,b)=>a+b,0) / demo.ops.sla72Compliance.length;
+
+    setText("kpi-close-plus", fmtHrs(closePlusAvg));
+    setText("kpi-close-service", fmtHrs(closeServAvg));
+    setText("kpi-reassign", fmtHrs(reassignAvg));
+    setText("kpi-sla-pay", fmtPct(slaAvg));
+
+    // Shortlink KPI
+    const s = demo.shortlink;
+    setText("kpi-sent", fmtInt(s.sent));
+    setText("kpi-delivery-rate", fmtPct(s.del / s.sent));
+    setText("kpi-no-open", fmtPct((s.del - s.open) / s.del));
+    setText("kpi-open-no-reg", fmtPct((s.open - s.reg) / s.open));
+
+    setText("f-step-sent", fmtInt(s.sent));
+    setText("f-step-del", fmtInt(s.del));
+    setText("f-step-open", fmtInt(s.open));
+    setText("f-step-reg", fmtInt(s.reg));
+    setText("f-step-cover", fmtInt(s.cover));
+    setText("f-step-od", fmtInt(s.od));
+    setText("f-step-sign", fmtInt(s.sign));
+    setText("f-step-pay", fmtInt(s.pay));
   }
 
-  // TODO: implementare funzioni di render per cards, charts, heatmap, tables
+  // -----------------------
+  // Charts (Chart.js)
+  // -----------------------
+  const charts = {};
+
+  function baseOptions() {
+    return {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { labels: { color: "#eaf0ff" } },
+        tooltip: { enabled: true }
+      },
+      scales: {
+        x: { ticks: { color: "#93a4c7" }, grid: { color: "rgba(34,48,85,.35)" } },
+        y: { ticks: { color: "#93a4c7" }, grid: { color: "rgba(34,48,85,.35)" } }
+      }
+    };
+  }
+
+  function renderCharts() {
+    // Executive Volumes (stacked bar)
+    charts.execVolumes = new Chart(document.getElementById("chartExecVolumes"), {
+      type: "bar",
+      data: {
+        labels: demo.labels,
+        datasets: [
+          { label: "Italiani", data: demo.volumes.it, stack: "s1" },
+          { label: "Stranieri", data: demo.volumes.foreign, stack: "s1" }
+        ]
+      },
+      options: {
+        ...baseOptions(),
+        scales: {
+          x: { stacked: true, ticks:{ color:"#93a4c7" }, grid:{ color:"rgba(34,48,85,.35)" } },
+          y: { stacked: true, ticks:{ color:"#93a4c7" }, grid:{ color:"rgba(34,48,85,.35)" } }
+        }
+      }
+    });
+
+    // Executive Finance (2 lines, 2 assi)
+    charts.execFinance = new Chart(document.getElementById("chartExecFinance"), {
+      type: "line",
+      data: {
+        labels: demo.labels,
+        datasets: [
+          { label: "Ricavi (€)", data: demo.finance.revenue, yAxisID: "y" },
+          { label: "Margine Lordo (%)", data: demo.finance.gmPct.map(x=>x*100), yAxisID: "y1" }
+        ]
+      },
+      options: {
+        ...baseOptions(),
+        scales: {
+          x: { ticks:{ color:"#93a4c7" }, grid:{ color:"rgba(34,48,85,.35)" } },
+          y: {
+            position: "left",
+            ticks:{ color:"#93a4c7" },
+            grid:{ color:"rgba(34,48,85,.35)" }
+          },
+          y1: {
+            position: "right",
+            ticks:{ color:"#93a4c7" },
+            grid:{ drawOnChartArea:false }
+          }
+        }
+      }
+    });
+
+    // Driver Saving (bar)
+    charts.driverSaving = new Chart(document.getElementById("chartDriverSaving"), {
+      type: "bar",
+      data: { labels: demo.labels, datasets: [{ label: "Risparmio Driver (€)", data: demo.driverSaving }] },
+      options: baseOptions()
+    });
+
+    // Amount breakdown (stacked bar)
+    charts.amountBreakdown = new Chart(document.getElementById("chartAmountBreakdown"), {
+      type: "bar",
+      data: {
+        labels: demo.amountBreakdown.labels,
+        datasets: [
+          { label: "Importo sanzioni (€)", data: demo.amountBreakdown.sanction, stack: "s2" },
+          { label: "Servizi app (OTP + comm.) (€)", data: demo.amountBreakdown.appFees, stack: "s2" },
+          { label: "Gestione pratiche (€)", data: demo.amountBreakdown.handling, stack: "s2" }
+        ]
+      },
+      options: {
+        ...baseOptions(),
+        scales: {
+          x: { stacked:true, ticks:{ color:"#93a4c7" }, grid:{ color:"rgba(34,48,85,.35)" } },
+          y: { stacked:true, ticks:{ color:"#93a4c7" }, grid:{ color:"rgba(34,48,85,.35)" } }
+        }
+      }
+    });
+
+    // Margins by client-site (bar, proxy heatmap)
+    charts.marginsClientSite = new Chart(document.getElementById("chartMarginsByClientSite"), {
+      type: "bar",
+      data: {
+        labels: demo.marginsClientSite.labels,
+        datasets: [{ label: "Margine Lordo (%)", data: demo.marginsClientSite.gmPct.map(x=>x*100) }]
+      },
+      options: baseOptions()
+    });
+
+    // Ops Close times (2 lines)
+    charts.opsClose = new Chart(document.getElementById("chartOpsClose"), {
+      type: "line",
+      data: {
+        labels: demo.labels,
+        datasets: [
+          { label: "Chiusura Plus (h)", data: demo.ops.closePlusHrs },
+          { label: "Chiusura Service (h)", data: demo.ops.closeServHrs }
+        ]
+      },
+      options: baseOptions()
+    });
+
+    // Ops SLA (line + compliance % su asse secondario)
+    charts.opsSla = new Chart(document.getElementById("chartOpsSla"), {
+      type: "line",
+      data: {
+        labels: demo.labels,
+        datasets: [
+          { label: "Tempo pagamento (h)", data: demo.ops.paymentLeadHrs, yAxisID:"y" },
+          { label: "Compliance SLA 72h (%)", data: demo.ops.sla72Compliance.map(x=>x*100), yAxisID:"y1" }
+        ]
+      },
+      options: {
+        ...baseOptions(),
+        scales: {
+          x: { ticks:{ color:"#93a4c7" }, grid:{ color:"rgba(34,48,85,.35)" } },
+          y: { position:"left", ticks:{ color:"#93a4c7" }, grid:{ color:"rgba(34,48,85,.35)" } },
+          y1:{ position:"right", ticks:{ color:"#93a4c7" }, grid:{ drawOnChartArea:false } }
+        }
+      }
+    });
+
+    // Shortlink rates (3 lines)
+    charts.shortlinkRates = new Chart(document.getElementById("chartShortlinkRates"), {
+      type: "line",
+      data: {
+        labels: demo.labels,
+        datasets: [
+          { label: "Open Rate (%)", data: demo.shortlink.openRate.map(x=>x*100) },
+          { label: "Registration Rate (%)", data: demo.shortlink.regRate.map(x=>x*100) },
+          { label: "Payment Rate (%)", data: demo.shortlink.payRate.map(x=>x*100) }
+        ]
+      },
+      options: baseOptions()
+    });
+
+    // Drop-off per step (bar)
+    const s = demo.shortlink;
+    const drop = {
+      "Sent→Delivered": 1 - (s.del/s.sent),
+      "Delivered→Open": 1 - (s.open/s.del),
+      "Open→Reg": 1 - (s.reg/s.open),
+      "Reg→Sign": 1 - (s.sign/s.reg),
+      "Sign→Pay": 1 - (s.pay/s.sign),
+    };
+    charts.dropoff = new Chart(document.getElementById("chartDropoff"), {
+      type: "bar",
+      data: {
+        labels: Object.keys(drop),
+        datasets: [{ label: "Drop-off (%)", data: Object.values(drop).map(x=>x*100) }]
+      },
+      options: baseOptions()
+    });
+
+    // IT vs Foreign (grouped bar)
+    charts.itForeign = new Chart(document.getElementById("chartItForeign"), {
+      type: "bar",
+      data: {
+        labels: ["Open", "Registrazione", "Pagamento"],
+        datasets: [
+          {
+            label: "Italiani",
+            data: [
+              demo.shortlink.it.open / demo.shortlink.it.del * 100,
+              demo.shortlink.it.reg / demo.shortlink.it.open * 100,
+              demo.shortlink.it.pay / demo.shortlink.it.reg * 100
+            ]
+          },
+          {
+            label: "Stranieri",
+            data: [
+              demo.shortlink.foreign.open / demo.shortlink.foreign.del * 100,
+              demo.shortlink.foreign.reg / demo.shortlink.foreign.open * 100,
+              demo.shortlink.foreign.pay / demo.shortlink.foreign.reg * 100
+            ]
+          }
+        ]
+      },
+      options: baseOptions()
+    });
+  }
+
+  // -----------------------
+  // Table (demo)
+  // -----------------------
+  function renderPaymentsTable() {
+    const tbody = document.querySelector("#tbl-payments tbody");
+    tbody.innerHTML = "";
+    for (const r of demo.paymentsTable) {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td>${r.client}</td>
+        <td>${r.site}</td>
+        <td>${fmtInt(r.tx)}</td>
+        <td>${fmtEur(r.gross)}</td>
+        <td>${fmtEur(r.fee)}</td>
+        <td>${fmtEur(r.comm)}</td>
+        <td>${fmtPct(r.gmPct)}</td>
+      `;
+      tbody.appendChild(tr);
+    }
+  }
+
+  // -----------------------
+  // Init
+  // -----------------------
+  renderKpis();
+  renderPaymentsTable();
+  renderCharts();
+
+  // Demo: i pulsanti non ricalcolano i grafici (è già pronto per collegare fetch e re-render)
+  document.getElementById("btn-apply").addEventListener("click", () => {
+    alert("Demo: qui collegherai le chiamate API / ricalcolo KPI in base ai filtri.");
+  });
+  document.getElementById("btn-reset").addEventListener("click", () => {
+    location.reload();
+  });
 </script>
 
 </body>
