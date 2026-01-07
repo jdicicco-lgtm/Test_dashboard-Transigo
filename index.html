@@ -1,0 +1,318 @@
+<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Transigo KPI Dashboard</title>
+  <style>
+    :root { --bg:#0b1220; --card:#121b2e; --muted:#93a4c7; --text:#eaf0ff; --line:#223055; }
+    body { margin:0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial; background:var(--bg); color:var(--text); }
+    header { display:flex; align-items:center; justify-content:space-between; padding:14px 18px; border-bottom:1px solid var(--line); position:sticky; top:0; background:rgba(11,18,32,.92); backdrop-filter: blur(8px); }
+    nav a { color:var(--muted); margin-right:14px; text-decoration:none; }
+    nav a.active { color:var(--text); font-weight:600; }
+    .container { padding:16px 18px 40px; max-width:1400px; margin:0 auto; }
+    .filters { display:grid; grid-template-columns: 220px 240px 240px 160px 180px auto; gap:10px; align-items:end; padding:12px; background:var(--card); border:1px solid var(--line); border-radius:12px; }
+    label { font-size:12px; color:var(--muted); display:block; margin-bottom:6px; }
+    select, input { width:100%; padding:10px; border-radius:10px; border:1px solid var(--line); background:#0e1730; color:var(--text); }
+    .btn { padding:10px 12px; border-radius:10px; border:1px solid var(--line); background:#0e1730; color:var(--text); cursor:pointer; }
+    .grid { display:grid; gap:12px; margin-top:14px; }
+    .grid.cards { grid-template-columns: repeat(4, minmax(220px, 1fr)); }
+    .grid.two { grid-template-columns: 2fr 1fr; }
+    .section { margin-top:18px; }
+    .section h2 { font-size:16px; margin:0 0 10px; color:#d7e3ff; }
+    .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:12px; }
+    .kpi-title { font-size:12px; color:var(--muted); }
+    .kpi-value { font-size:26px; font-weight:700; margin-top:4px; }
+    .kpi-sub { font-size:12px; color:var(--muted); margin-top:6px; }
+    .chart { height:260px; display:flex; align-items:center; justify-content:center; color:var(--muted); border:1px dashed var(--line); border-radius:12px; }
+    .funnel { display:grid; gap:10px; }
+    .funnel-step { padding:10px; border-radius:12px; border:1px solid var(--line); background:#0e1730; }
+    .heatmap { height:320px; display:flex; align-items:center; justify-content:center; color:var(--muted); border:1px dashed var(--line); border-radius:12px; }
+    .table { overflow:auto; }
+    table { width:100%; border-collapse:collapse; }
+    th, td { padding:10px; border-bottom:1px solid var(--line); font-size:13px; color:#d7e3ff; }
+    th { text-align:left; color:var(--muted); font-weight:600; }
+    .pill { display:inline-flex; gap:8px; align-items:center; padding:6px 10px; border-radius:999px; border:1px solid var(--line); color:var(--muted); }
+  </style>
+</head>
+
+<body>
+<header>
+  <div style="display:flex; gap:10px; align-items:center;">
+    <strong>Transigo</strong>
+    <span class="pill">KPI Monitoring</span>
+  </div>
+  <nav>
+    <a href="#executive" class="active">Executive</a>
+    <a href="#economica">Economica</a>
+    <a href="#ops">Operations</a>
+    <a href="#shortlink">ShortLink</a>
+  </nav>
+</header>
+
+<div class="container">
+
+  <!-- FILTRI GLOBALI -->
+  <section class="filters" id="filters">
+    <div>
+      <label>Periodo</label>
+      <input type="text" id="f-period" placeholder="YYYY-MM-DD → YYYY-MM-DD" />
+    </div>
+    <div>
+      <label>Cliente (Noleggiatore)</label>
+      <select id="f-client"><option value="">Tutti</option></select>
+    </div>
+    <div>
+      <label>Sede</label>
+      <select id="f-site" multiple></select>
+    </div>
+    <div>
+      <label>Canale</label>
+      <select id="f-channel">
+        <option value="">Tutti</option>
+        <option value="B2B">B2B</option>
+        <option value="B2C">B2C</option>
+      </select>
+    </div>
+    <div>
+      <label>Nazionalità</label>
+      <select id="f-nation">
+        <option value="">Tutti</option>
+        <option value="IT">Italiani</option>
+        <option value="FOREIGN">Stranieri</option>
+      </select>
+    </div>
+    <div style="display:flex; gap:10px; justify-content:flex-end;">
+      <button class="btn" id="btn-apply">Applica</button>
+      <button class="btn" id="btn-reset">Reset</button>
+    </div>
+  </section>
+
+  <!-- PAGINA 1: EXECUTIVE -->
+  <section class="section" id="executive">
+    <h2>1) KPI Principali (Vista Executive)</h2>
+
+    <div class="grid cards">
+      <!-- Volumi -->
+      <div class="card">
+        <div class="kpi-title">Multe gestite (periodo)</div>
+        <div class="kpi-value" id="kpi-cases">—</div>
+        <div class="kpi-sub" id="kpi-cases-sub">IT vs Foreign: —</div>
+      </div>
+      <div class="card">
+        <div class="kpi-title">% Conducente identificato</div>
+        <div class="kpi-value" id="kpi-identified">—</div>
+        <div class="kpi-sub">Def: identified / cases</div>
+      </div>
+      <div class="card">
+        <div class="kpi-title">% Pagate in app</div>
+        <div class="kpi-value" id="kpi-paid-inapp">—</div>
+        <div class="kpi-sub">Def: paid_in_app / cases_eligible</div>
+      </div>
+
+      <!-- Efficienza -->
+      <div class="card">
+        <div class="kpi-title">Tempo medio gestione</div>
+        <div class="kpi-value" id="kpi-leadtime">—</div>
+        <div class="kpi-sub">Def: infrazione → azione utente</div>
+      </div>
+    </div>
+
+    <div class="grid two">
+      <div class="card">
+        <div class="kpi-title">Trend volumi / identificazione / pagamenti</div>
+        <div class="chart" id="chart-exec-volumes">[Chart placeholder]</div>
+      </div>
+      <div class="card">
+        <div class="kpi-title">Finanziario (Ricavi, Margine)</div>
+        <div class="chart" id="chart-exec-finance">[Chart placeholder]</div>
+      </div>
+    </div>
+
+    <div class="grid two">
+      <div class="card">
+        <div class="kpi-title">Risparmio Driver (totale)</div>
+        <div class="kpi-value" id="kpi-driver-saving">—</div>
+        <div class="kpi-sub">Def: Σ max(0, baseline_cost - actual_cost)</div>
+      </div>
+      <div class="card">
+        <div class="kpi-title">Trend risparmio driver</div>
+        <div class="chart" id="chart-driver-saving">[Chart placeholder]</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- PAGINA 2: ECONOMICA -->
+  <section class="section" id="economica">
+    <h2>2) Rendicontazione Dealer + Flowpay (Vista Economica)</h2>
+
+    <div class="grid cards">
+      <div class="card">
+        <div class="kpi-title">Ricavi totali (fee + commissioni)</div>
+        <div class="kpi-value" id="kpi-revenue">—</div>
+      </div>
+      <div class="card">
+        <div class="kpi-title">Margine lordo €</div>
+        <div class="kpi-value" id="kpi-gm-eur">—</div>
+      </div>
+      <div class="card">
+        <div class="kpi-title">Margine lordo %</div>
+        <div class="kpi-value" id="kpi-gm-pct">—</div>
+      </div>
+      <div class="card">
+        <div class="kpi-title">Pagamenti pre/post sollecito</div>
+        <div class="kpi-value" id="kpi-prepost">—</div>
+        <div class="kpi-sub">Split volumi o €</div>
+      </div>
+    </div>
+
+    <div class="grid two">
+      <div class="card">
+        <div class="kpi-title">Dettaglio importi (waterfall/stacked)</div>
+        <div class="chart" id="chart-amount-breakdown">[Chart placeholder]</div>
+      </div>
+      <div class="card">
+        <div class="kpi-title">Heatmap margini Cliente × Sede</div>
+        <div class="heatmap" id="heatmap-margins">[Heatmap placeholder]</div>
+      </div>
+    </div>
+
+    <div class="card table">
+      <div class="kpi-title">Tabella riconciliazione pagamenti</div>
+      <table id="tbl-payments">
+        <thead>
+          <tr>
+            <th>Cliente</th><th>Sede</th><th>Transazioni</th><th>Incassato €</th><th>Fee €</th><th>Commissioni €</th><th>Margine %</th>
+          </tr>
+        </thead>
+        <tbody><!-- rows --></tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- PAGINA 3: OPS -->
+  <section class="section" id="ops">
+    <h2>3) Performance DESK Support & Operations</h2>
+
+    <div class="grid cards">
+      <div class="card">
+        <div class="kpi-title">Tempo medio chiusura (Plus)</div>
+        <div class="kpi-value" id="kpi-close-plus">—</div>
+      </div>
+      <div class="card">
+        <div class="kpi-title">Tempo medio chiusura (Service)</div>
+        <div class="kpi-value" id="kpi-close-service">—</div>
+      </div>
+      <div class="card">
+        <div class="kpi-title">Tempo medio reintestazione</div>
+        <div class="kpi-value" id="kpi-reassign">—</div>
+        <div class="kpi-sub">ready → istanza / decorso</div>
+      </div>
+      <div class="card">
+        <div class="kpi-title">SLA pagamento post comunicazione</div>
+        <div class="kpi-value" id="kpi-sla-pay">—</div>
+      </div>
+    </div>
+
+    <div class="grid two">
+      <div class="card">
+        <div class="kpi-title">Trend tempi di chiusura</div>
+        <div class="chart" id="chart-ops-close">[Chart placeholder]</div>
+      </div>
+      <div class="card">
+        <div class="kpi-title">Trend SLA</div>
+        <div class="chart" id="chart-ops-sla">[Chart placeholder]</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- PAGINA 4: SHORTLINK -->
+  <section class="section" id="shortlink">
+    <h2>4) Analisi Conversione & ShortLink (Comportamento Utente)</h2>
+
+    <div class="grid cards">
+      <div class="card">
+        <div class="kpi-title">Notifiche inviate</div>
+        <div class="kpi-value" id="kpi-sent">—</div>
+      </div>
+      <div class="card">
+        <div class="kpi-title">Delivery rate</div>
+        <div class="kpi-value" id="kpi-delivery-rate">—</div>
+      </div>
+      <div class="card">
+        <div class="kpi-title">% non hanno aperto</div>
+        <div class="kpi-value" id="kpi-no-open">—</div>
+      </div>
+      <div class="card">
+        <div class="kpi-title">% open ma non registrati</div>
+        <div class="kpi-value" id="kpi-open-no-reg">—</div>
+      </div>
+    </div>
+
+    <div class="grid two">
+      <div class="card">
+        <div class="kpi-title">Funnel conversione</div>
+        <div class="funnel" id="funnel">
+          <div class="funnel-step">Notifica inviata: <strong id="f-step-sent">—</strong></div>
+          <div class="funnel-step">Link aperto: <strong id="f-step-open">—</strong></div>
+          <div class="funnel-step">Registrazione: <strong id="f-step-reg">—</strong> (Cover: <span id="f-step-cover">—</span> / On Demand: <span id="f-step-od">—</span>)</div>
+          <div class="funnel-step">Firma: <strong id="f-step-sign">—</strong></div>
+          <div class="funnel-step">Pagamento: <strong id="f-step-pay">—</strong></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="kpi-title">Trend conversioni & drop-off</div>
+        <div class="chart" id="chart-shortlink">[Chart placeholder]</div>
+      </div>
+    </div>
+
+    <div class="card table">
+      <div class="kpi-title">Drop-off per cliente/sede</div>
+      <table id="tbl-dropoff">
+        <thead>
+          <tr>
+            <th>Cliente</th><th>Sede</th><th>Delivery</th><th>Open Rate</th><th>Registration Rate</th><th>Payment Rate</th>
+          </tr>
+        </thead>
+        <tbody><!-- rows --></tbody>
+      </table>
+    </div>
+  </section>
+</div>
+
+<script>
+  // Stato filtri (minimo)
+  const state = {
+    period: null, client: null, sites: [], channel: null, nationality: null
+  };
+
+  document.getElementById('btn-apply').addEventListener('click', () => {
+    state.period = document.getElementById('f-period').value || null;
+    state.client = document.getElementById('f-client').value || null;
+    state.sites = Array.from(document.getElementById('f-site').selectedOptions).map(o => o.value);
+    state.channel = document.getElementById('f-channel').value || null;
+    state.nationality = document.getElementById('f-nation').value || null;
+
+    // TODO: chiamate API backend (consigliato) o calcolo in-browser da dataset già caricato
+    // fetchKpiAndRender(state);
+  });
+
+  document.getElementById('btn-reset').addEventListener('click', () => {
+    document.getElementById('filters').querySelectorAll('input,select').forEach(el => {
+      if (el.multiple) Array.from(el.options).forEach(o => o.selected = false);
+      else el.value = '';
+    });
+    // fetchKpiAndRender({period:null,client:null,sites:[],channel:null,nationality:null});
+  });
+
+  // Placeholder: render KPI
+  function setText(id, value) {
+    const el = document.getElementById(id);
+    if (el) el.textContent = value ?? '—';
+  }
+
+  // TODO: implementare funzioni di render per cards, charts, heatmap, tables
+</script>
+
+</body>
+</html>
